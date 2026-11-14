@@ -17,7 +17,10 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-// HTML elements
+// ==========================================
+// HTML ELEMENTS
+// ==========================================
+
 const subjectInput = document.getElementById("subjectInput");
 const dateDisplay = document.getElementById("dateDisplay");
 
@@ -37,7 +40,10 @@ const scanCount = document.getElementById("scanCount");
 const facultyName = document.getElementById("facultyName");
 const facultyInitial = document.getElementById("facultyInitial");
 
-// Variables
+// ==========================================
+// VARIABLES
+// ==========================================
+
 let currentUser = null;
 let ndef = null;
 let scanning = false;
@@ -45,7 +51,10 @@ let processingCard = false;
 let recentScans = [];
 let scanAbortController = null;
 
-// Local date and time
+// ==========================================
+// DATE AND TIME
+// ==========================================
+
 function getLocalDate() {
     const now = new Date();
 
@@ -66,7 +75,10 @@ function getLocalTime() {
 
 dateDisplay.value = getLocalDate();
 
-// Authentication
+// ==========================================
+// AUTHENTICATION
+// ==========================================
+
 onAuthStateChanged(auth, async function (user) {
     if (!user) {
         window.location.href = "faculty-login.html";
@@ -110,19 +122,37 @@ onAuthStateChanged(auth, async function (user) {
 
     } catch (error) {
         console.error("Authentication error:", error);
-        showResult("Account verification failed", error.message, "error");
+
+        showResult(
+            "Account verification failed",
+            error.message,
+            "error"
+        );
     }
 });
 
-// Start NFC scanner
+// ==========================================
+// START NFC SCANNER
+// ==========================================
+
 startButton.addEventListener("click", async function () {
+
     if (!currentUser) {
-        showResult("Not logged in", "Please log in again.", "error");
+        showResult(
+            "Not logged in",
+            "Please log in again.",
+            "error"
+        );
         return;
     }
 
     if (!subjectInput.value.trim()) {
-        showResult("Subject required", "Enter the subject first.", "error");
+        showResult(
+            "Subject required",
+            "Enter the subject first.",
+            "error"
+        );
+
         subjectInput.focus();
         return;
     }
@@ -138,10 +168,13 @@ startButton.addEventListener("click", async function () {
 
     try {
         ndef = new NDEFReader();
+
         scanAbortController = new AbortController();
 
-        // Register events before starting scan
-        ndef.addEventListener("reading", handleNfcReading);
+        ndef.addEventListener(
+            "reading",
+            handleNfcReading
+        );
 
         ndef.addEventListener("readingerror", function () {
             showResult(
@@ -164,6 +197,7 @@ startButton.addEventListener("click", async function () {
         readerIndicator.className = "reader-indicator active";
 
         scannerTitle.textContent = "Scanner is active";
+
         scannerDescription.textContent =
             "Bring a student's NDEF card close to your phone.";
 
@@ -186,8 +220,12 @@ startButton.addEventListener("click", async function () {
     }
 });
 
-// Process NFC reading
+// ==========================================
+// NFC READING EVENT
+// ==========================================
+
 async function handleNfcReading(event) {
+
     if (processingCard || !scanning) {
         return;
     }
@@ -195,21 +233,29 @@ async function handleNfcReading(event) {
     processingCard = true;
 
     try {
-        console.log("NFC event received:", event);
+        console.log("========== NFC SCAN ==========");
+        console.log("NFC event:", event);
         console.log("NDEF records:", event.message.records);
 
         const studentCode = readStudentCode(event.message);
 
         if (!studentCode) {
+
+            // Generate diagnostic information
+            const diagnostics = getNfcDiagnostics(event.message);
+
+            console.error("NFC diagnostic:", diagnostics);
+
             showResult(
                 "Invalid NFC card",
-                "The card was read, but its text could not be recognized. Check the browser console for record details.",
+                diagnostics,
                 "error"
             );
+
             return;
         }
 
-        console.log("Extracted student ID:", studentCode);
+        console.log("Student ID extracted:", studentCode);
 
         await markStudentAttendance(studentCode);
 
@@ -229,8 +275,12 @@ async function handleNfcReading(event) {
     }
 }
 
-// Convert NFC record data into a byte array
+// ==========================================
+// CONVERT RECORD DATA TO BYTES
+// ==========================================
+
 function getRecordBytes(data) {
+
     if (!data) {
         return null;
     }
@@ -258,85 +308,154 @@ function getRecordBytes(data) {
     return null;
 }
 
-// Extract student ID from NFC text record
+// ==========================================
+// DECODE NFC TEXT RECORD
+// ==========================================
+
+function decodeNfcText(bytes) {
+
+    if (!bytes || bytes.length === 0) {
+        return "";
+    }
+
+    // NDEF Text Record format:
+    // Byte 0 = status byte
+    // Following bytes = language code
+    // Remaining bytes = actual text
+
+    const statusByte = bytes[0];
+
+    const isUTF16 = (statusByte & 0x80) !== 0;
+
+    const languageLength = statusByte & 0x3F;
+
+    const textStart = 1 + languageLength;
+
+    if (textStart > bytes.length) {
+        return "";
+    }
+
+    const textBytes = bytes.slice(textStart);
+
+    const decoder = new TextDecoder(
+        isUTF16 ? "utf-16" : "utf-8"
+    );
+
+    return decoder.decode(textBytes);
+}
+
+// ==========================================
+// EXTRACT STUDENT ID
+// ==========================================
+
 function readStudentCode(message) {
+
     if (!message || !message.records) {
-        console.error("No NDEF message or records found.");
+        console.error("NDEF message is empty.");
         return null;
     }
 
     for (const record of message.records) {
-        console.log("Checking NFC record:", record.recordType);
 
+        console.log("Record type:", record.recordType);
+
+        // Only process text records
         if (record.recordType !== "text") {
             continue;
         }
 
         const bytes = getRecordBytes(record.data);
 
-        if (!bytes || bytes.length < 2) {
-            console.warn("NFC text record has no usable data.");
+        if (!bytes || bytes.length === 0) {
             continue;
         }
 
+        console.log("NFC raw bytes:", Array.from(bytes));
+
         try {
-            const statusByte = bytes[0];
 
-            // Bit 7 indicates UTF-16; otherwise UTF-8.
-            const isUTF16 = (statusByte & 0x80) !== 0;
+            const decodedText = decodeNfcText(bytes);
 
-            // Lower 6 bits contain the language-code length.
-            const languageLength = statusByte & 0x3F;
-
-            const textStart = 1 + languageLength;
-
-            if (textStart > bytes.length) {
-                console.warn("Invalid NDEF language prefix.");
-                continue;
-            }
-
-            const textBytes = bytes.slice(textStart);
-
-            const decoder = new TextDecoder(
-                isUTF16 ? "utf-16" : "utf-8"
+            console.log(
+                "Decoded NFC text:",
+                JSON.stringify(decodedText)
             );
 
-            let decodedText = decoder.decode(textBytes);
-
-            // Clean BOM, null characters and whitespace.
-            decodedText = decodedText
+            const cleanedText = decodedText
                 .replace(/^\uFEFF/, "")
                 .replace(/\0/g, "")
-                .trim();
-
-            console.log("Decoded NFC text:", JSON.stringify(decodedText));
-
-            // Remove invisible characters and normalize spaces.
-            decodedText = decodedText
                 .replace(/[\u200B-\u200D\u2060]/g, "")
                 .trim();
 
-            const match = decodedText.match(/^TAP2P\s*:\s*([A-Za-z0-9_-]{1,40})$/i);
+            console.log("Cleaned NFC text:", cleanedText);
+
+            const match = cleanedText.match(
+                /^TAP2P\s*:\s*([A-Za-z0-9_-]{1,40})$/i
+            );
 
             if (match) {
-                return match[1].trim().toUpperCase();
+                return match[1].toUpperCase();
             }
 
         } catch (error) {
-            console.error("NFC text decoding error:", error);
+            console.error("NFC decoding error:", error);
         }
     }
 
     return null;
 }
 
-// Find student and save attendance
+// ==========================================
+// NFC DIAGNOSTICS
+// ==========================================
+
+function getNfcDiagnostics(message) {
+
+    if (!message || !message.records || message.records.length === 0) {
+        return "No NDEF records were found on the card.";
+    }
+
+    const details = message.records.map(function (record, index) {
+
+        const bytes = getRecordBytes(record.data);
+
+        const rawBytes = bytes
+            ? Array.from(bytes).join(",")
+            : "No data";
+
+        let decoded = "Not a text record";
+
+        if (record.recordType === "text" && bytes) {
+            try {
+                decoded = decodeNfcText(bytes);
+            } catch (error) {
+                decoded = "Decoding failed";
+            }
+        }
+
+        return (
+            "Record " + (index + 1) +
+            " | Type: " + record.recordType +
+            " | Bytes: " + rawBytes +
+            " | Text: " + decoded
+        );
+
+    });
+
+    return details.join(" || ");
+}
+
+// ==========================================
+// FIND STUDENT AND MARK ATTENDANCE
+// ==========================================
+
 async function markStudentAttendance(studentCode) {
+
     const subject = subjectInput.value.trim();
     const date = getLocalDate();
     const time = getLocalTime();
 
-    // Find student using studentId
+    // Find student by studentId
     const studentQuery = query(
         collection(db, "users"),
         where("studentId", "==", studentCode),
@@ -346,32 +465,39 @@ async function markStudentAttendance(studentCode) {
     const studentSnapshot = await getDocs(studentQuery);
 
     if (studentSnapshot.empty) {
+
         showResult(
             "Student not found",
             `No student registered with ID ${studentCode}.`,
             "error"
         );
+
         return;
     }
 
     if (studentSnapshot.size > 1) {
+
         showResult(
             "Duplicate student ID",
             "More than one student has this ID. Contact the administrator.",
             "error"
         );
+
         return;
     }
 
     const studentDocument = studentSnapshot.docs[0];
+
     const student = studentDocument.data();
 
     if (student.status !== "active") {
+
         showResult(
             "Account not active",
             `${student.name || studentCode} is not approved yet.`,
             "error"
         );
+
         return;
     }
 
@@ -381,37 +507,49 @@ async function markStudentAttendance(studentCode) {
         subject
     );
 
-    const attendanceRef = doc(db, "attendance", attendanceId);
+    const attendanceRef = doc(
+        db,
+        "attendance",
+        attendanceId
+    );
 
     // Prevent duplicate attendance
-    const result = await runTransaction(db, async function (transaction) {
-        const existingRecord = await transaction.get(attendanceRef);
+    const result = await runTransaction(
+        db,
+        async function (transaction) {
 
-        if (existingRecord.exists()) {
-            return false;
+            const existingRecord = await transaction.get(
+                attendanceRef
+            );
+
+            if (existingRecord.exists()) {
+                return false;
+            }
+
+            transaction.set(attendanceRef, {
+                studentId: studentDocument.id,
+                studentCode: studentCode,
+                studentName: student.name || "Student",
+                subject: subject,
+                date: date,
+                time: time,
+                status: "present",
+                scannedBy: currentUser.uid,
+                createdAt: serverTimestamp()
+            });
+
+            return true;
         }
-
-        transaction.set(attendanceRef, {
-            studentId: studentDocument.id,
-            studentCode: studentCode,
-            studentName: student.name || "Student",
-            subject: subject,
-            date: date,
-            time: time,
-            status: "present",
-            scannedBy: currentUser.uid,
-            createdAt: serverTimestamp()
-        });
-
-        return true;
-    });
+    );
 
     if (!result) {
+
         showResult(
             "Already marked",
             `${student.name || studentCode} has already been marked present for ${subject} today.`,
             "error"
         );
+
         return;
     }
 
@@ -428,8 +566,12 @@ async function markStudentAttendance(studentCode) {
     });
 }
 
-// Generate attendance document ID
+// ==========================================
+// CREATE ATTENDANCE DOCUMENT ID
+// ==========================================
+
 function createAttendanceId(studentUid, date, subject) {
+
     const safeSubject = subject
         .toLowerCase()
         .replace(/[^a-z0-9]+/g, "-")
@@ -438,22 +580,35 @@ function createAttendanceId(studentUid, date, subject) {
     return `${studentUid}_${date}_${safeSubject}`;
 }
 
-// Display result
+// ==========================================
+// SHOW RESULT
+// ==========================================
+
 function showResult(title, description, type) {
+
     scanResult.className = "scan-result " + type;
+
     scanResult.innerHTML = "";
 
     const icon = document.createElement("div");
+
     icon.className = "result-icon";
+
     icon.textContent = type === "success" ? "✓" : "NFC";
 
     const content = document.createElement("div");
 
     const heading = document.createElement("h3");
+
     heading.textContent = title;
 
     const paragraph = document.createElement("p");
+
     paragraph.textContent = description;
+
+    // Allow long diagnostic text to wrap
+    paragraph.style.overflowWrap = "anywhere";
+    paragraph.style.wordBreak = "break-word";
 
     content.appendChild(heading);
     content.appendChild(paragraph);
@@ -462,8 +617,12 @@ function showResult(title, description, type) {
     scanResult.appendChild(content);
 }
 
-// Add successful scan to table
+// ==========================================
+// ADD SCAN TO TABLE
+// ==========================================
+
 function addScanToTable(student) {
+
     recentScans.unshift(student);
 
     scanCount.textContent = recentScans.length + " scanned";
@@ -471,6 +630,7 @@ function addScanToTable(student) {
     scanTableBody.innerHTML = "";
 
     recentScans.forEach(function (item) {
+
         const row = document.createElement("tr");
 
         const idCell = document.createElement("td");
@@ -485,6 +645,7 @@ function addScanToTable(student) {
         const statusCell = document.createElement("td");
 
         const badge = document.createElement("span");
+
         badge.className = "table-status";
         badge.textContent = "Present";
 
@@ -499,16 +660,21 @@ function addScanToTable(student) {
     });
 }
 
-// Stop NFC scanner
+// ==========================================
+// STOP NFC SCANNER
+// ==========================================
+
 stopButton.addEventListener("click", stopScanner);
 
 function stopScanner() {
+
     if (scanAbortController) {
         scanAbortController.abort();
         scanAbortController = null;
     }
 
     scanning = false;
+    processingCard = false;
     ndef = null;
 
     startButton.disabled = false;
@@ -518,14 +684,19 @@ function stopScanner() {
     readerIndicator.className = "reader-indicator";
 
     scannerTitle.textContent = "Scanner stopped";
+
     scannerDescription.textContent =
         "Start the scanner when you are ready.";
 
     nfcAnimation.classList.remove("scanning");
 }
 
-// NFC error messages
+// ==========================================
+// NFC ERROR MESSAGES
+// ==========================================
+
 function getNfcErrorMessage(error) {
+
     if (error.name === "NotAllowedError") {
         return "NFC permission was denied. Allow NFC access in Chrome.";
     }
@@ -546,16 +717,24 @@ function getNfcErrorMessage(error) {
         "Check your phone's NFC settings and try again.";
 }
 
-// Logout
+// ==========================================
+// LOGOUT
+// ==========================================
+
 logoutButton.addEventListener("click", async function () {
+
     stopScanner();
 
     try {
+
         await signOut(auth);
+
         window.location.href = "faculty-login.html";
 
     } catch (error) {
+
         console.error("Logout error:", error);
+
         alert("Unable to logout. Please try again.");
     }
 });
