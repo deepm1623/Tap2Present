@@ -1,0 +1,176 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Student Dashboard | Tap2Present</title>
+
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/student/student-dashboard.css">
+</head>
+
+<body class="dashboard-page">
+
+    <div class="dashboard-layout">
+
+        <aside class="dashboard-sidebar">
+
+            <a href="../index.html" class="brand">
+                <img src="../assets/images/logo.png" alt="Tap2Present Logo">
+                <span>Tap2<span>Present</span></span>
+            </a>
+
+            <p class="sidebar-heading">STUDENT MENU</p>
+
+            <nav class="sidebar-nav">
+                <a class="active" href="student-dashboard.html">▦ Dashboard</a>
+                <a href="mark-attendance.html">◉ Mark Attendance</a>
+                <a href="attendance-history.html">▤ Attendance History</a>
+                <a href="student-profile.html">◎ My Profile</a>
+            </nav>
+
+            <div class="sidebar-bottom">
+                <div class="sidebar-tagline">
+                    <p>Tap your card.</p>
+                    <p>Mark your presence.</p>
+                </div>
+
+                <button class="logout-link" id="logoutButton">
+                    ↪ Logout
+                </button>
+            </div>
+
+        </aside>
+
+        <main class="dashboard-main">
+
+            <header class="dashboard-header">
+
+                <div>
+                    <p class="dashboard-date">STUDENT PORTAL</p>
+
+                    <h1>Dashboard</h1>
+
+                    <p class="dashboard-subtitle">
+                        Welcome back,
+                        <strong id="studentName">Student</strong>.
+                        Here's your attendance overview.
+                    </p>
+                </div>
+
+                <div class="student-mini-profile">
+                    <div class="profile-avatar" id="studentInitial">S</div>
+
+                    <div>
+                        <h4 id="headerStudentName">Student</h4>
+                        <p>Student Account</p>
+                    </div>
+                </div>
+
+            </header>
+
+            <div id="dashboardMessage" class="dashboard-message">
+                Loading your dashboard...
+            </div>
+
+            <section class="dashboard-section">
+
+                <div class="section-heading">
+                    <h2>Attendance Overview</h2>
+                    <span>All Records</span>
+                </div>
+
+                <div class="stats-grid">
+
+                    <div class="stat-card">
+                        <p>Attendance Percentage</p>
+                        <h2 id="attendancePercentage">--%</h2>
+                        <span>Overall attendance</span>
+                    </div>
+
+                    <div class="stat-card">
+                        <p>Total Classes</p>
+                        <h2 id="totalClasses">--</h2>
+                        <span>Classes recorded</span>
+                    </div>
+
+                    <div class="stat-card">
+                        <p>Present</p>
+                        <h2 id="presentClasses">--</h2>
+                        <span>Classes attended</span>
+                    </div>
+
+                    <div class="stat-card">
+                        <p>Absent</p>
+                        <h2 id="absentClasses">--</h2>
+                        <span>Classes missed</span>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <a href="mark-attendance.html" class="attendance-panel">
+
+                <div>
+                    <p class="panel-label">QUICK ACTION</p>
+
+                    <h2>Mark Your Attendance</h2>
+
+                    <p>
+                        Use your registered NFC/RFID card at the
+                        connected campus reader.
+                    </p>
+
+                    <span class="panel-link">Go to attendance →</span>
+                </div>
+
+                <div class="attendance-icon">◉</div>
+
+            </a>
+
+            <section class="dashboard-section">
+
+                <div class="section-heading">
+                    <h2>Recent Attendance</h2>
+
+                    <a href="attendance-history.html">
+                        View All →
+                    </a>
+                </div>
+
+                <div class="history-table">
+
+                    <div class="history-row history-header">
+                        <span>Subject</span>
+                        <span>Date</span>
+                        <span>Time</span>
+                        <span>Status</span>
+                    </div>
+
+                    <div id="recentAttendance">
+
+                        <div class="empty-history">
+                            Loading attendance records...
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+            <footer class="dashboard-footer">
+                © 2026 Tap2Present. All rights reserved.
+            </footer>
+
+        </main>
+
+    </div>
+
+    <script type="module" src="../js/student/student-dashboard.js"></script>
+
+</body>
+</html>

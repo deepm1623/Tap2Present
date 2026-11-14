@@ -1,0 +1,194 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Take Attendance | Tap2Present</title>
+
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/faculty/take-attendance.css">
+</head>
+
+<body class="nfc-page">
+
+<div class="nfc-layout">
+
+    <aside class="nfc-sidebar">
+
+        <a href="../index.html" class="brand">
+            <img src="../assets/images/logo.png" alt="Tap2Present">
+            <span>Tap2<span>Present</span></span>
+        </a>
+
+        <p class="sidebar-heading">FACULTY MENU</p>
+
+        <nav class="sidebar-nav">
+            <a href="faculty-dashboard.html">▦ Dashboard</a>
+            <a href="manage-classes.html">▤ Manage Classes</a>
+            <a href="take-attendance.html" class="active">◉ Take Attendance</a>
+            <a href="faculty-reports.html">▥ Reports</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <button id="logoutButton">↪ Logout</button>
+        </div>
+
+    </aside>
+
+    <main class="nfc-main">
+
+        <header class="nfc-header">
+            <div>
+                <p class="eyebrow">FACULTY PORTAL</p>
+                <h1>Take Attendance</h1>
+                <p>Use your Android phone as the central NFC reader.</p>
+            </div>
+
+            <div class="faculty-profile">
+                <div class="avatar" id="facultyInitial">F</div>
+                <div>
+                    <strong id="facultyName">Faculty</strong>
+                    <small>Faculty Account</small>
+                </div>
+            </div>
+        </header>
+
+        <section class="session-card">
+
+            <div>
+                <p class="section-label">ATTENDANCE SESSION</p>
+                <h2>Configure your class</h2>
+                <p>Select the subject before starting the scanner.</p>
+            </div>
+
+            <div class="session-fields">
+
+                <div class="field">
+                    <label for="subjectInput">Subject</label>
+                    <input
+                        type="text"
+                        id="subjectInput"
+                        placeholder="Example: Java"
+                        value="Java"
+                        required
+                    >
+                </div>
+
+                <div class="field">
+                    <label for="dateDisplay">Date</label>
+                    <input type="text" id="dateDisplay" readonly>
+                </div>
+
+            </div>
+
+        </section>
+
+        <section class="reader-card">
+
+            <div class="reader-top">
+                <div>
+                    <p class="section-label">NFC READER</p>
+                    <h2>Tap Student Card</h2>
+                    <p>Hold an NDEF student card near your phone's NFC area.</p>
+                </div>
+
+                <span class="reader-indicator" id="readerIndicator">
+                    Not Started
+                </span>
+            </div>
+
+            <div class="nfc-animation" id="nfcAnimation">
+                <div class="nfc-circle">
+                    <span>◉</span>
+                </div>
+            </div>
+
+            <h3 id="scannerTitle">Ready to scan</h3>
+
+            <p id="scannerDescription">
+                Start the scanner and bring a student's NFC card close to your phone.
+            </p>
+
+            <div class="reader-actions">
+                <button id="startScannerButton" class="start-button">
+                    Start NFC Scanner
+                </button>
+
+                <button id="stopScannerButton" class="stop-button" disabled>
+                    Stop Scanner
+                </button>
+            </div>
+
+            <p class="reader-note">
+                Keep this page open while scanning. NFC permission is requested
+                by your browser when scanning starts.
+            </p>
+
+        </section>
+
+        <section class="result-card">
+
+            <div class="result-heading">
+                <div>
+                    <h2>Latest Scan</h2>
+                    <p>Student attendance result</p>
+                </div>
+            </div>
+
+            <div id="scanResult" class="scan-result empty-result">
+                <div class="result-icon">NFC</div>
+                <div>
+                    <h3>No card scanned yet</h3>
+                    <p>Student details will appear here.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <section class="recent-card">
+
+            <div class="recent-heading">
+                <div>
+                    <h2>Today's Scans</h2>
+                    <p>Attendance marked during this session.</p>
+                </div>
+
+                <span id="scanCount">0 scanned</span>
+            </div>
+
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Student ID</th>
+                            <th>Student Name</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="scanTableBody">
+                        <tr>
+                            <td colspan="4" class="empty-table">
+                                No attendance marked yet.
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
+
+        <footer class="nfc-footer">
+            © 2026 Tap2Present. All rights reserved.
+        </footer>
+
+    </main>
+
+</div>
+
+<script type="module" src="../js/faculty/take-attendance.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,158 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Attendance History | Tap2Present</title>
+
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/student/attendance-history.css">
+</head>
+
+<body class="history-page">
+
+<div class="history-layout">
+
+    <aside class="history-sidebar">
+
+        <a href="../index.html" class="brand">
+            <img src="../assets/images/logo.png" alt="Tap2Present">
+            <span>Tap2<span>Present</span></span>
+        </a>
+
+        <p class="sidebar-heading">STUDENT MENU</p>
+
+        <nav class="sidebar-nav">
+            <a href="student-dashboard.html">▦ Dashboard</a>
+            <a href="mark-attendance.html">◉ Mark Attendance</a>
+            <a href="attendance-history.html" class="active">▤ Attendance History</a>
+            <a href="student-profile.html">◎ My Profile</a>
+        </nav>
+
+        <div class="sidebar-bottom">
+            <button id="logoutButton" class="logout-link">
+                ↪ Logout
+            </button>
+        </div>
+
+    </aside>
+
+    <main class="history-main">
+
+        <header class="history-header">
+            <div>
+                <p class="eyebrow">STUDENT PORTAL</p>
+                <h1>Attendance History</h1>
+                <p class="header-description">
+                    Track and review your attendance records.
+                </p>
+            </div>
+
+            <div class="student-mini-profile">
+                <div class="profile-avatar" id="studentInitial">S</div>
+                <div>
+                    <h4 id="studentName">Student</h4>
+                    <p>Student Account</p>
+                </div>
+            </div>
+        </header>
+
+        <p id="pageMessage" class="page-message">
+            Loading attendance records...
+        </p>
+
+        <section class="history-stats">
+
+            <div class="history-stat-card">
+                <p>Total Classes</p>
+                <h2 id="totalClasses">0</h2>
+            </div>
+
+            <div class="history-stat-card">
+                <p>Present</p>
+                <h2 id="presentClasses">0</h2>
+            </div>
+
+            <div class="history-stat-card">
+                <p>Absent</p>
+                <h2 id="absentClasses">0</h2>
+            </div>
+
+            <div class="history-stat-card">
+                <p>Attendance</p>
+                <h2 id="attendancePercentage">0%</h2>
+            </div>
+
+        </section>
+
+        <section class="history-content">
+
+            <div class="content-heading">
+                <div>
+                    <h2>All Records</h2>
+                    <p>View your complete attendance activity.</p>
+                </div>
+
+                <span id="recordCount">0 records</span>
+            </div>
+
+            <div class="history-filters">
+
+                <div class="search-box">
+                    <span>⌕</span>
+                    <input
+                        type="search"
+                        id="searchInput"
+                        placeholder="Search subject..."
+                    >
+                </div>
+
+                <select id="statusFilter">
+                    <option value="all">All Status</option>
+                    <option value="present">Present</option>
+                    <option value="absent">Absent</option>
+                </select>
+
+            </div>
+
+            <div class="table-wrapper">
+
+                <table class="attendance-table">
+
+                    <thead>
+                        <tr>
+                            <th>Subject</th>
+                            <th>Date</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+
+                    <tbody id="attendanceTableBody">
+                        <tr>
+                            <td colspan="4" class="empty-message">
+                                Loading records...
+                            </td>
+                        </tr>
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </section>
+
+        <footer class="history-footer">
+            © 2026 Tap2Present. All rights reserved.
+        </footer>
+
+    </main>
+
+</div>
+
+<script type="module" src="../js/student/attendance-history.js"></script>
+
+</body>
+</html>

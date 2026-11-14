@@ -1,0 +1,3 @@
+import { requireRole, logout } from "../auth.js";
+await requireRole("student");
+document.querySelector("[data-logout]").addEventListener("click", async (event) => { event.preventDefault(); await logout(); });
