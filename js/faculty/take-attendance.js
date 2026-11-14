@@ -168,7 +168,6 @@ startButton.addEventListener("click", async function () {
 
     try {
         ndef = new NDEFReader();
-
         scanAbortController = new AbortController();
 
         ndef.addEventListener(
@@ -240,8 +239,6 @@ async function handleNfcReading(event) {
         const studentCode = readStudentCode(event.message);
 
         if (!studentCode) {
-
-            // Generate diagnostic information
             const diagnostics = getNfcDiagnostics(event.message);
 
             console.error("NFC diagnostic:", diagnostics);
@@ -255,7 +252,7 @@ async function handleNfcReading(event) {
             return;
         }
 
-        console.log("Student ID extracted:", studentCode);
+        console.log("Extracted student ID:", studentCode);
 
         await markStudentAttendance(studentCode);
 
@@ -264,7 +261,7 @@ async function handleNfcReading(event) {
 
         showResult(
             "Attendance failed",
-            error.message || "Please try again.",
+            getFriendlyError(error),
             "error"
         );
 
@@ -276,7 +273,7 @@ async function handleNfcReading(event) {
 }
 
 // ==========================================
-// CONVERT RECORD DATA TO BYTES
+// CONVERT NFC DATA TO BYTES
 // ==========================================
 
 function getRecordBytes(data) {
@@ -309,7 +306,19 @@ function getRecordBytes(data) {
 }
 
 // ==========================================
-// DECODE NFC TEXT RECORD
+// CLEAN NFC TEXT
+// ==========================================
+
+function cleanNfcText(text) {
+    return text
+        .replace(/^\uFEFF/, "")
+        .replace(/\0/g, "")
+        .replace(/[\u200B-\u200D\u2060]/g, "")
+        .trim();
+}
+
+// ==========================================
+// DECODE NFC TEXT
 // ==========================================
 
 function decodeNfcText(bytes) {
@@ -318,21 +327,29 @@ function decodeNfcText(bytes) {
         return "";
     }
 
-    // NDEF Text Record format:
-    // Byte 0 = status byte
-    // Following bytes = language code
-    // Remaining bytes = actual text
+    // First try the complete byte array as plain UTF-8.
+    // Your card currently sends this format.
+
+    const rawText = cleanNfcText(
+        new TextDecoder("utf-8").decode(bytes)
+    );
+
+    if (/^TAP2P\s*:/i.test(rawText)) {
+        console.log("NFC format detected: Plain UTF-8");
+        return rawText;
+    }
+
+    // If plain UTF-8 did not match, try standard NDEF Text Record.
 
     const statusByte = bytes[0];
 
     const isUTF16 = (statusByte & 0x80) !== 0;
-
     const languageLength = statusByte & 0x3F;
 
     const textStart = 1 + languageLength;
 
     if (textStart > bytes.length) {
-        return "";
+        return rawText;
     }
 
     const textBytes = bytes.slice(textStart);
@@ -341,7 +358,13 @@ function decodeNfcText(bytes) {
         isUTF16 ? "utf-16" : "utf-8"
     );
 
-    return decoder.decode(textBytes);
+    const standardText = cleanNfcText(
+        decoder.decode(textBytes)
+    );
+
+    console.log("NFC format detected: Standard NDEF text");
+
+    return standardText;
 }
 
 // ==========================================
@@ -359,7 +382,6 @@ function readStudentCode(message) {
 
         console.log("Record type:", record.recordType);
 
-        // Only process text records
         if (record.recordType !== "text") {
             continue;
         }
@@ -373,7 +395,6 @@ function readStudentCode(message) {
         console.log("NFC raw bytes:", Array.from(bytes));
 
         try {
-
             const decodedText = decodeNfcText(bytes);
 
             console.log(
@@ -381,11 +402,7 @@ function readStudentCode(message) {
                 JSON.stringify(decodedText)
             );
 
-            const cleanedText = decodedText
-                .replace(/^\uFEFF/, "")
-                .replace(/\0/g, "")
-                .replace(/[\u200B-\u200D\u2060]/g, "")
-                .trim();
+            const cleanedText = cleanNfcText(decodedText);
 
             console.log("Cleaned NFC text:", cleanedText);
 
@@ -394,7 +411,7 @@ function readStudentCode(message) {
             );
 
             if (match) {
-                return match[1].toUpperCase();
+                return match[1].trim().toUpperCase();
             }
 
         } catch (error) {
@@ -415,7 +432,7 @@ function getNfcDiagnostics(message) {
         return "No NDEF records were found on the card.";
     }
 
-    const details = message.records.map(function (record, index) {
+    return message.records.map(function (record, index) {
 
         const bytes = getRecordBytes(record.data);
 
@@ -440,9 +457,7 @@ function getNfcDiagnostics(message) {
             " | Text: " + decoded
         );
 
-    });
-
-    return details.join(" || ");
+    }).join(" || ");
 }
 
 // ==========================================
@@ -455,7 +470,7 @@ async function markStudentAttendance(studentCode) {
     const date = getLocalDate();
     const time = getLocalTime();
 
-    // Find student by studentId
+    // Find student using studentId
     const studentQuery = query(
         collection(db, "users"),
         where("studentId", "==", studentCode),
@@ -465,39 +480,32 @@ async function markStudentAttendance(studentCode) {
     const studentSnapshot = await getDocs(studentQuery);
 
     if (studentSnapshot.empty) {
-
         showResult(
             "Student not found",
             `No student registered with ID ${studentCode}.`,
             "error"
         );
-
         return;
     }
 
     if (studentSnapshot.size > 1) {
-
         showResult(
             "Duplicate student ID",
             "More than one student has this ID. Contact the administrator.",
             "error"
         );
-
         return;
     }
 
     const studentDocument = studentSnapshot.docs[0];
-
     const student = studentDocument.data();
 
     if (student.status !== "active") {
-
         showResult(
             "Account not active",
             `${student.name || studentCode} is not approved yet.`,
             "error"
         );
-
         return;
     }
 
@@ -543,13 +551,11 @@ async function markStudentAttendance(studentCode) {
     );
 
     if (!result) {
-
         showResult(
             "Already marked",
             `${student.name || studentCode} has already been marked present for ${subject} today.`,
             "error"
         );
-
         return;
     }
 
@@ -587,26 +593,20 @@ function createAttendanceId(studentUid, date, subject) {
 function showResult(title, description, type) {
 
     scanResult.className = "scan-result " + type;
-
     scanResult.innerHTML = "";
 
     const icon = document.createElement("div");
-
     icon.className = "result-icon";
-
     icon.textContent = type === "success" ? "✓" : "NFC";
 
     const content = document.createElement("div");
 
     const heading = document.createElement("h3");
-
     heading.textContent = title;
 
     const paragraph = document.createElement("p");
-
     paragraph.textContent = description;
 
-    // Allow long diagnostic text to wrap
     paragraph.style.overflowWrap = "anywhere";
     paragraph.style.wordBreak = "break-word";
 
@@ -618,7 +618,7 @@ function showResult(title, description, type) {
 }
 
 // ==========================================
-// ADD SCAN TO TABLE
+// ADD SUCCESSFUL SCAN TO TABLE
 // ==========================================
 
 function addScanToTable(student) {
@@ -645,7 +645,6 @@ function addScanToTable(student) {
         const statusCell = document.createElement("td");
 
         const badge = document.createElement("span");
-
         badge.className = "table-status";
         badge.textContent = "Present";
 
@@ -692,7 +691,7 @@ function stopScanner() {
 }
 
 // ==========================================
-// NFC ERROR MESSAGES
+// ERROR MESSAGES
 // ==========================================
 
 function getNfcErrorMessage(error) {
@@ -717,6 +716,19 @@ function getNfcErrorMessage(error) {
         "Check your phone's NFC settings and try again.";
 }
 
+function getFriendlyError(error) {
+
+    if (error.code === "permission-denied") {
+        return "Firestore permission denied. Check your Firestore security rules.";
+    }
+
+    if (error.code === "failed-precondition") {
+        return "Firestore query requires an index or another database condition.";
+    }
+
+    return error.message || "Please try scanning again.";
+}
+
 // ==========================================
 // LOGOUT
 // ==========================================
@@ -726,15 +738,11 @@ logoutButton.addEventListener("click", async function () {
     stopScanner();
 
     try {
-
         await signOut(auth);
-
         window.location.href = "faculty-login.html";
 
     } catch (error) {
-
         console.error("Logout error:", error);
-
         alert("Unable to logout. Please try again.");
     }
 });
