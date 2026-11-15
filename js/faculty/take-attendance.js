@@ -254,7 +254,11 @@ async function handleNfcReading(event) {
 
         console.log("Extracted student ID:", studentCode);
 
-        await markStudentAttendance(studentCode);
+        await window.withLoading(
+            () => markStudentAttendance(studentCode),
+            "Verifying the card and saving attendance.",
+            "Processing NFC scan"
+        );
 
     } catch (error) {
         console.error("Card processing error:", error);
@@ -522,33 +526,43 @@ async function markStudentAttendance(studentCode) {
     );
 
     // Prevent duplicate attendance
-    const result = await runTransaction(
-        db,
-        async function (transaction) {
-
-            const existingRecord = await transaction.get(
-                attendanceRef
-            );
-
-            if (existingRecord.exists()) {
-                return false;
-            }
-
-            transaction.set(attendanceRef, {
-                studentId: studentDocument.id,
-                studentCode: studentCode,
-                studentName: student.name || "Student",
-                subject: subject,
-                date: date,
-                time: time,
-                status: "present",
-                scannedBy: currentUser.uid,
-                createdAt: serverTimestamp()
-            });
-
-            return true;
-        }
+    let result;
+    const attendanceLoading = await window.showLoading(
+        "Saving the attendance record.",
+        "Saving attendance"
     );
+
+    try {
+        result = await runTransaction(
+            db,
+            async function (transaction) {
+
+                const existingRecord = await transaction.get(
+                    attendanceRef
+                );
+
+                if (existingRecord.exists()) {
+                    return false;
+                }
+
+                transaction.set(attendanceRef, {
+                    studentId: studentDocument.id,
+                    studentCode: studentCode,
+                    studentName: student.name || "Student",
+                    subject: subject,
+                    date: date,
+                    time: time,
+                    status: "present",
+                    scannedBy: currentUser.uid,
+                    createdAt: serverTimestamp()
+                });
+
+                return true;
+            }
+        );
+    } finally {
+        attendanceLoading.close();
+    }
 
     if (!result) {
         showResult(
@@ -563,6 +577,11 @@ async function markStudentAttendance(studentCode) {
         "Attendance successful!",
         `${student.name || "Student"} (${studentCode}) — ${subject}`,
         "success"
+    );
+    window.showToast(
+        `${student.name || "Student"} was marked present for ${subject}.`,
+        "success",
+        "Attendance saved"
     );
 
     addScanToTable({
@@ -734,6 +753,13 @@ function getFriendlyError(error) {
 // ==========================================
 
 logoutButton.addEventListener("click", async function () {
+    const confirmed = await window.showConfirm({
+        title: "Log out of Tap2Present?",
+        message: "Stop the scanner and leave the faculty portal?",
+        confirmText: "Log out"
+    });
+
+    if (!confirmed) return;
 
     stopScanner();
 
@@ -743,6 +769,6 @@ logoutButton.addEventListener("click", async function () {
 
     } catch (error) {
         console.error("Logout error:", error);
-        alert("Unable to logout. Please try again.");
+        window.showToast("Unable to logout. Please try again.", "error", "Logout failed");
     }
 });

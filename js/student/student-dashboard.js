@@ -32,12 +32,20 @@ const logoutButton = document.getElementById("logoutButton");
 
 // Logout
 logoutButton.addEventListener("click", async function () {
+    const confirmed = await window.showConfirm({
+        title: "Log out of Tap2Present?",
+        message: "You will need to sign in again to view your dashboard.",
+        confirmText: "Log out"
+    });
+
+    if (!confirmed) return;
+
     try {
         await signOut(auth);
         window.location.href = "student-login.html";
     } catch (error) {
         console.error("Logout error:", error);
-        alert("Unable to logout. Please try again.");
+        window.showToast("Unable to logout. Please try again.", "error", "Logout failed");
     }
 });
 

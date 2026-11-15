@@ -1,0 +1,32 @@
+<div class="app-toast-container" id="appToastContainer" aria-live="polite" aria-atomic="false"></div>
+
+<div class="app-modal-overlay" id="globalConfirmModal" role="dialog" aria-modal="true"
+     aria-labelledby="confirmTitle" aria-describedby="confirmDescription" tabindex="-1">
+    <div class="app-modal app-confirm-modal">
+        <div class="app-modal-header">
+            <div class="app-modal-heading">
+                <p class="app-modal-eyebrow">Tap2Present</p>
+                <h2 class="app-modal-title" id="confirmTitle">Are you sure?</h2>
+                <p class="app-modal-description" id="confirmDescription"></p>
+            </div>
+            <button type="button" class="app-modal-close" id="confirmClose" aria-label="Close popup">×</button>
+        </div>
+
+        <div class="app-confirm-icon danger" id="confirmIcon" aria-hidden="true">!</div>
+        <div class="app-modal-body" id="confirmBody"></div>
+
+        <div class="app-modal-footer">
+            <button type="button" class="app-modal-btn app-modal-btn-secondary" id="confirmCancel">Cancel</button>
+            <button type="button" class="app-modal-btn app-modal-btn-danger" id="confirmAccept">Continue</button>
+        </div>
+    </div>
+</div>
+
+<div class="app-modal-overlay app-loading-overlay" id="globalLoadingModal" role="dialog"
+     aria-modal="true" aria-labelledby="loadingTitle" aria-describedby="loadingMessage">
+    <div class="app-modal app-loading-modal">
+        <div class="app-loading-spinner" aria-hidden="true"></div>
+        <h2 class="app-modal-title" id="loadingTitle" data-loading-title>Working...</h2>
+        <p class="app-modal-description" id="loadingMessage" data-loading-message>Please wait...</p>
+    </div>
+</div>

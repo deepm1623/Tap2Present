@@ -32,6 +32,15 @@ if (form && role) {
             else if (error.code === "auth/invalid-email") showMessage("Please enter a valid email address.");
             else if (error.code === "auth/invalid-credential" || error.code === "auth/wrong-password" || error.code === "auth/user-not-found") showMessage("Incorrect email or password.");
             else showMessage("Something went wrong. Please try again.");
+            window.showToast(
+                error.code === "auth/invalid-email"
+                    ? "Please enter a valid email address."
+                    : error.message === "inactive-account"
+                        ? "Your account is waiting for approval."
+                        : "Login failed. Check your credentials and try again.",
+                "error",
+                "Login failed"
+            );
             await signOut(auth).catch(() => {});
         }
     });
@@ -57,6 +66,22 @@ export async function requireRole(expectedRole) {
 }
 
 export async function logout() {
-    await signOut(auth);
-    window.location.href = "../index.html";
+    const confirmed = await window.showConfirm({
+        title: "Log out of Tap2Present?",
+        message: "You will need to sign in again to access this portal.",
+        confirmText: "Log out",
+        danger: true
+    });
+
+    if (!confirmed) return false;
+
+    try {
+        await signOut(auth);
+        window.location.href = "../index.html";
+        return true;
+    } catch (error) {
+        console.error("Logout error:", error);
+        window.showToast("Unable to logout. Please try again.", "error", "Logout failed");
+        return false;
+    }
 }

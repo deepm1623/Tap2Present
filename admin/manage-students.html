@@ -1,1 +1,354 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Manage Students | Tap2Present</title><link rel="stylesheet" href="../css/common.css"><link rel="stylesheet" href="../css/admin/manage-students.css"></head><body class="dashboard-page"><div class="dashboard-layout"><aside class="dashboard-sidebar"><a href="../index.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a><p class="sidebar-heading">ADMIN MENU</p><nav class="sidebar-nav"><a href="admin-dashboard.html">▦ Dashboard</a><a class="active" href="manage-students.html">◎ Manage Students</a><a href="manage-faculty.html">▣ Manage Faculty</a><a href="admin-reports.html">▥ Reports</a></nav><div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div></aside><main class="dashboard-main"><div class="page-title"><p class="dashboard-date">ADMIN PORTAL</p><h1>Manage Students</h1></div><section class="data-card"><h2>Student directory</h2><p class="empty-history">Student records will appear here after they are added through the trusted administrative process.</p></section></main></div><script type="module" src="../js/admin/manage-students.js"></script></body></html>
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#101820">
+  <title>Manage Students | Tap2Present</title>
+
+  <link rel="stylesheet" href="../css/common.css">
+  <link rel="stylesheet" href="../css/admin/manage-students.css">
+</head>
+
+<body class="admin-page">
+  <div class="admin-layout">
+
+    <aside class="admin-sidebar">
+      <a href="admin-dashboard.html" class="admin-brand">
+        <img src="../assets/images/logo.png" alt="Tap2Present logo">
+        <span>Tap2<span>Present</span></span>
+      </a>
+
+      <p class="admin-sidebar-heading">ADMIN MENU</p>
+
+      <nav class="admin-nav">
+        <a href="admin-dashboard.html">▦ Dashboard</a>
+        <a href="manage-students.html" class="active">▣ Manage Students</a>
+        <a href="manage-faculty.html">◉ Manage Faculty</a>
+        <a href="admin-reports.html">▤ Reports</a>
+      </nav>
+
+      <div class="admin-sidebar-bottom">
+        <p class="admin-sidebar-tagline">Tap. Track. Transform.</p>
+        <button class="admin-logout" id="logoutButton" type="button">
+          ↪ Logout
+        </button>
+      </div>
+    </aside>
+
+    <main class="admin-main">
+
+      <header class="admin-header">
+        <div>
+          <p class="admin-eyebrow">ADMIN PORTAL</p>
+          <h1>Manage Students</h1>
+          <p class="admin-subtitle">
+            Create student accounts, manage access and prepare NFC IDs.
+          </p>
+        </div>
+
+        <div class="admin-header-actions">
+          <div class="admin-profile">
+            <div class="admin-avatar" id="adminAvatar">A</div>
+            <div>
+              <h4 id="adminName">Administrator</h4>
+              <p>Admin Account</p>
+            </div>
+          </div>
+
+          <button class="admin-primary-button" id="addStudentButton" type="button">
+            + Add Student
+          </button>
+        </div>
+      </header>
+
+      <!-- STATISTICS -->
+      <section class="admin-stats-grid">
+        <article class="admin-stat-card">
+          <p>Total Students</p>
+          <h2 id="totalStudents">0</h2>
+          <span>Registered accounts</span>
+        </article>
+
+        <article class="admin-stat-card">
+          <p>Active Students</p>
+          <h2 id="activeStudents">0</h2>
+          <span>Currently active</span>
+        </article>
+
+        <article class="admin-stat-card">
+          <p>Inactive Students</p>
+          <h2 id="inactiveStudents">0</h2>
+          <span>Access disabled</span>
+        </article>
+
+        <article class="admin-stat-card">
+          <p>Departments</p>
+          <h2 id="departmentCount">0</h2>
+          <span>Represented in directory</span>
+        </article>
+      </section>
+
+      <!-- STUDENT DIRECTORY -->
+      <section class="admin-section">
+        <div class="admin-section-heading">
+          <div>
+            <h2>Student Directory</h2>
+            <p>View, search and manage registered students.</p>
+          </div>
+
+          <button class="admin-text-button" id="refreshStudentsButton" type="button">
+            ↻ Refresh
+          </button>
+        </div>
+
+        <div class="admin-toolbar">
+          <input
+            type="search"
+            id="searchStudents"
+            placeholder="Search by name, email or student ID..."
+          >
+
+          <select id="statusFilter">
+            <option value="all">All Statuses</option>
+            <option value="active">Active</option>
+            <option value="inactive">Inactive</option>
+          </select>
+        </div>
+
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>Student ID</th>
+                <th>Department</th>
+                <th>Semester</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+
+            <tbody id="studentsTableBody">
+              <tr>
+                <td colspan="6" class="admin-empty-cell">
+                  Loading students...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <p id="studentMessage" class="admin-message" aria-live="polite"></p>
+      </section>
+
+      <!-- BULK IMPORT -->
+      <section class="admin-section">
+        <div class="admin-section-heading">
+          <div>
+            <h2>Bulk Student Import</h2>
+            <p>Register multiple students from a CSV or Excel spreadsheet.</p>
+          </div>
+
+          <button class="admin-secondary-button"
+                  id="downloadTemplateButton" type="button">
+            ↓ Download Template
+          </button>
+        </div>
+
+        <div class="admin-import-box">
+          <div class="admin-import-icon">⇧</div>
+
+          <div class="admin-import-info">
+            <h3>Upload Student Spreadsheet</h3>
+            <p>Supported formats: CSV, XLSX and XLS</p>
+          </div>
+
+          <button class="admin-secondary-button"
+                  id="chooseFileButton" type="button">
+            Choose File
+          </button>
+
+          <input id="bulkStudentFile"
+                 type="file"
+                 accept=".csv,.xlsx,.xls"
+                 hidden>
+        </div>
+
+        <div id="importPreview" class="admin-import-preview">
+          No file selected.
+        </div>
+
+        <p id="importProgress" class="admin-import-progress"
+           aria-live="polite"></p>
+
+        <button class="admin-primary-button"
+                id="startImportButton"
+                type="button"
+                disabled>
+          Start Import
+        </button>
+      </section>
+
+      <footer class="admin-footer">
+        Tap2Present · Student Administration
+      </footer>
+    </main>
+  </div>
+
+  <!-- ADD STUDENT MODAL -->
+  <div class="admin-modal-overlay" id="studentModal">
+    <div class="admin-modal">
+      <div class="admin-modal-heading">
+        <div>
+          <p class="admin-eyebrow">STUDENT REGISTRATION</p>
+          <h2>Add New Student</h2>
+        </div>
+
+        <button class="admin-close-button"
+                id="closeStudentModal" type="button">×</button>
+      </div>
+
+      <form id="studentForm">
+        <div class="admin-form-group">
+          <label for="studentName">Full Name</label>
+          <input id="studentName" type="text"
+                 placeholder="Enter student name" required>
+        </div>
+
+        <div class="admin-form-group">
+          <label for="studentEmail">Email Address</label>
+          <input id="studentEmail" type="email"
+                 placeholder="student@example.com" required>
+        </div>
+
+        <div class="admin-form-group">
+          <label for="studentPassword">Temporary Password</label>
+          <input id="studentPassword" type="password"
+                 minlength="6" placeholder="Minimum 6 characters" required>
+        </div>
+
+        <div class="admin-form-row">
+          <div class="admin-form-group">
+            <label for="studentDepartment">Department</label>
+            <input id="studentDepartment" type="text"
+                   placeholder="Computer" required>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="studentSemester">Semester</label>
+            <select id="studentSemester" required>
+              <option value="">Select</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+        </div>
+
+        <p id="formMessage" class="admin-message" aria-live="polite"></p>
+
+        <button class="admin-primary-button admin-full-button"
+                id="saveStudentButton" type="submit">
+          Create Student Account
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- EDIT STUDENT MODAL -->
+  <div class="admin-modal-overlay" id="editStudentModal">
+    <div class="admin-modal">
+      <div class="admin-modal-heading">
+        <div>
+          <p class="admin-eyebrow">STUDENT MANAGEMENT</p>
+          <h2>Edit Student Information</h2>
+        </div>
+
+        <button class="admin-close-button"
+                id="closeEditModal" type="button">×</button>
+      </div>
+
+      <form id="editStudentForm">
+        <input type="hidden" id="editStudentUid">
+
+        <div class="admin-form-group">
+          <label for="editStudentName">Full Name</label>
+          <input id="editStudentName" type="text" required>
+        </div>
+
+        <div class="admin-form-group">
+          <label for="editStudentEmail">Email Address</label>
+          <input id="editStudentEmail" type="email" disabled>
+          <small>Email changes are managed through Firebase Authentication.</small>
+        </div>
+
+        <div class="admin-form-row">
+          <div class="admin-form-group">
+            <label for="editStudentDepartment">Department</label>
+            <input id="editStudentDepartment" type="text" required>
+          </div>
+
+          <div class="admin-form-group">
+            <label for="editStudentSemester">Semester</label>
+            <select id="editStudentSemester" required>
+              <option value="">Select</option>
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+              <option value="5">5</option>
+              <option value="6">6</option>
+              <option value="7">7</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+        </div>
+
+        <p id="editStudentMessage" class="admin-message"
+           aria-live="polite"></p>
+
+        <button class="admin-primary-button admin-full-button"
+                id="updateStudentButton" type="submit">
+          Save Changes
+        </button>
+      </form>
+    </div>
+  </div>
+
+  <!-- NFC MODAL -->
+  <div class="admin-modal-overlay" id="nfcModal">
+    <div class="admin-modal admin-nfc-modal">
+      <button class="admin-close-button admin-modal-close"
+              id="closeNfcModal" type="button">×</button>
+
+      <p class="admin-eyebrow">NFC STUDENT ID</p>
+      <h2 id="nfcStudentName">Student</h2>
+
+      <p class="admin-modal-description">
+        Write this text to the student's NFC card.
+      </p>
+
+      <div class="admin-nfc-code" id="nfcCode">TAP2P:STU001</div>
+
+      <button class="admin-primary-button admin-full-button"
+              id="copyNfcButton" type="button">
+        Copy NFC Text
+      </button>
+
+      <p id="nfcMessage" class="admin-message"
+         aria-live="polite"></p>
+    </div>
+  </div>
+
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+  <script type="module" src="../js/admin/manage-students.js"></script>
+<script src="../js/Common/popups.js"></script>
+</body>
+</html>
