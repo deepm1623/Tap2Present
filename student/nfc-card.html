@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NFC Card | Tap2Present</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/student/student-portal.css">
+</head>
+<body class="dashboard-page student-portal">
+    <div class="dashboard-layout">
+        <aside class="dashboard-sidebar">
+            <a href="student-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a>
+            <p class="sidebar-heading">STUDENT MENU</p>
+            <nav class="sidebar-nav student-sidebar-nav">
+                <a href="student-dashboard.html">▦ Dashboard</a>
+                <a href="mark-attendance.html">◉ Mark Attendance</a>
+                <a href="attendance-history.html">▤ Attendance History</a>
+                <a href="attendance-overview.html">◫ Overview</a>
+                <a href="timetable.html">▥ Timetable</a>
+                <a href="notifications.html">♢ Notifications</a>
+                <a href="announcements.html">◈ Announcements</a>
+                <a class="active" href="nfc-card.html">⌁ NFC Card</a>
+                <a href="student-profile.html">◎ My Profile</a>
+                <a href="settings.html">⚙ Settings</a>
+            </nav>
+            <div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div>
+        </aside>
+        <main class="dashboard-main">
+            <div class="page-title"><p class="dashboard-date">STUDENT PORTAL</p><h1>NFC Card</h1><p class="dashboard-subtitle">View card information managed by the institution.</p></div>
+            <section class="data-card">
+                <div class="profile-grid">
+                    <div class="profile-field"><small>Student ID</small><strong data-student-id>Loading...</strong></div>
+                    <div class="profile-field"><small>Registration status</small><strong id="registrationStatus">Checking...</strong></div>
+                    <div class="profile-field"><small>Card identifier</small><strong id="cardIdentifier">Not available</strong></div>
+                    <div class="profile-field"><small>Registered on</small><strong id="registeredAt">Not available</strong></div>
+                    <div class="profile-field"><small>Activation status</small><strong id="activationStatus">Not available</strong></div>
+                    <div class="profile-field"><small>Last successful scan</small><strong id="lastScan">Not available</strong></div>
+                </div>
+                <p class="status-note">Students cannot register, replace, or assign NFC cards from the portal.</p>
+            </section>
+        </main>
+    </div>
+    <script type="module" src="../js/student/nfc-card.js"></script>
+    <script src="../js/Common/popups.js"></script>
+</body>
+</html>

@@ -8,10 +8,10 @@
     <title>Attendance History | Tap2Present</title>
 
     <link rel="stylesheet" href="../css/common.css">
-    <link rel="stylesheet" href="../css/student/attendance-history.css">
+    <link rel="stylesheet" href="../css/student/student-portal.css">
 </head>
 
-<body class="history-page">
+<body class="history-page student-portal">
 
 <div class="history-layout">
 
@@ -24,11 +24,17 @@
 
         <p class="sidebar-heading">STUDENT MENU</p>
 
-        <nav class="sidebar-nav">
+        <nav class="sidebar-nav student-sidebar-nav">
             <a href="student-dashboard.html">▦ Dashboard</a>
             <a href="mark-attendance.html">◉ Mark Attendance</a>
             <a href="attendance-history.html" class="active">▤ Attendance History</a>
+            <a href="attendance-overview.html">◫ Overview</a>
+            <a href="timetable.html">▥ Timetable</a>
+            <a href="notifications.html">♢ Notifications</a>
+            <a href="announcements.html">◈ Announcements</a>
+            <a href="nfc-card.html">⌁ NFC Card</a>
             <a href="student-profile.html">◎ My Profile</a>
+            <a href="settings.html">⚙ Settings</a>
         </nav>
 
         <div class="sidebar-bottom">
@@ -115,6 +121,9 @@
                     <option value="absent">Absent</option>
                 </select>
 
+                <input type="date" id="startDate" aria-label="Start date">
+                <input type="date" id="endDate" aria-label="End date">
+
             </div>
 
             <div class="table-wrapper">
@@ -140,6 +149,12 @@
 
                 </table>
 
+            </div>
+
+            <div class="filter-row">
+                <button type="button" class="primary-button" id="previousPage">Previous</button>
+                <span id="pageIndicator" class="status-note">Page 1</span>
+                <button type="button" class="primary-button" id="nextPage">Next</button>
             </div>
 
         </section>

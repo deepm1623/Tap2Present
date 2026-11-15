@@ -27,6 +27,11 @@ const attendancePercentage = document.getElementById("attendancePercentage");
 const attendanceTableBody = document.getElementById("attendanceTableBody");
 const searchInput = document.getElementById("searchInput");
 const statusFilter = document.getElementById("statusFilter");
+const startDate = document.getElementById("startDate");
+const endDate = document.getElementById("endDate");
+const previousPage = document.getElementById("previousPage");
+const nextPage = document.getElementById("nextPage");
+const pageIndicator = document.getElementById("pageIndicator");
 
 const pageMessage = document.getElementById("pageMessage");
 const recordCount = document.getElementById("recordCount");
@@ -34,6 +39,8 @@ const recordCount = document.getElementById("recordCount");
 const logoutButton = document.getElementById("logoutButton");
 
 let allRecords = [];
+let currentPage = 1;
+const pageSize = 12;
 
 // Logout
 logoutButton.addEventListener("click", async function () {
@@ -183,26 +190,50 @@ function calculateStatistics() {
 // Search and filter
 searchInput.addEventListener("input", applyFilters);
 statusFilter.addEventListener("change", applyFilters);
+startDate.addEventListener("change", applyFilters);
+endDate.addEventListener("change", applyFilters);
+previousPage.addEventListener("click", () => {
+    if (currentPage > 1) {
+        currentPage -= 1;
+        applyFilters();
+    }
+});
+nextPage.addEventListener("click", () => {
+    const filteredRecords = getFilteredRecords();
+    if (currentPage < Math.ceil(filteredRecords.length / pageSize)) {
+        currentPage += 1;
+        displayRecords(filteredRecords);
+    }
+});
 
 function applyFilters() {
+    currentPage = 1;
+    displayRecords(getFilteredRecords());
+}
+
+function getFilteredRecords() {
 
     const searchValue = searchInput.value.trim().toLowerCase();
     const selectedStatus = statusFilter.value;
+    const from = startDate.value;
+    const to = endDate.value;
 
-    const filteredRecords = allRecords.filter(function (record) {
+    return allRecords.filter(function (record) {
 
         const subject = String(record.subject || "").toLowerCase();
         const status = String(record.status || "").toLowerCase();
+        const recordDate = String(record.date || "");
 
         const matchesSubject = subject.includes(searchValue);
 
         const matchesStatus =
             selectedStatus === "all" || status === selectedStatus;
 
-        return matchesSubject && matchesStatus;
-    });
+        const matchesFrom = !from || recordDate >= from;
+        const matchesTo = !to || recordDate <= to;
 
-    displayRecords(filteredRecords);
+        return matchesSubject && matchesStatus && matchesFrom && matchesTo;
+    });
 }
 
 // Display records
@@ -212,6 +243,16 @@ function displayRecords(records) {
 
     recordCount.textContent =
         records.length + (records.length === 1 ? " record" : " records");
+
+    const pageCount = Math.max(1, Math.ceil(records.length / pageSize));
+    currentPage = Math.min(currentPage, pageCount);
+    const pageRecords = records.slice(
+        (currentPage - 1) * pageSize,
+        currentPage * pageSize
+    );
+    pageIndicator.textContent = `Page ${currentPage} of ${pageCount}`;
+    previousPage.disabled = currentPage === 1;
+    nextPage.disabled = currentPage === pageCount;
 
     if (records.length === 0) {
 
@@ -230,7 +271,7 @@ function displayRecords(records) {
         return;
     }
 
-    records.forEach(function (record) {
+    pageRecords.forEach(function (record) {
 
         const row = document.createElement("tr");
 

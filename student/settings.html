@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings | Tap2Present</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/student/student-portal.css">
+</head>
+<body class="dashboard-page student-portal">
+    <div class="dashboard-layout">
+        <aside class="dashboard-sidebar">
+            <a href="student-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a>
+            <p class="sidebar-heading">STUDENT MENU</p>
+            <nav class="sidebar-nav student-sidebar-nav">
+                <a href="student-dashboard.html">▦ Dashboard</a><a href="mark-attendance.html">◉ Mark Attendance</a><a href="attendance-history.html">▤ Attendance History</a><a href="attendance-overview.html">◫ Overview</a><a href="timetable.html">▥ Timetable</a><a href="notifications.html">♢ Notifications</a><a href="announcements.html">◈ Announcements</a><a href="nfc-card.html">⌁ NFC Card</a><a href="student-profile.html">◎ My Profile</a><a class="active" href="settings.html">⚙ Settings</a>
+            </nav>
+            <div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div>
+        </aside>
+        <main class="dashboard-main">
+            <div class="page-title"><p class="dashboard-date">STUDENT PORTAL</p><h1>Settings</h1><p class="dashboard-subtitle">Manage the settings available to your account.</p></div>
+            <section class="data-card">
+                <h2>Account information</h2>
+                <p class="muted">Signed in as <strong data-email>Loading...</strong></p>
+                <button class="primary-button" id="resetPassword" type="button">Send password reset email</button>
+                <p id="settingsMessage" class="auth-message" aria-live="polite"></p>
+            </section>
+        </main>
+    </div>
+    <script type="module" src="../js/student/settings.js"></script><script src="../js/Common/popups.js"></script>
+</body>
+</html>

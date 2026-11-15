@@ -8,10 +8,10 @@
     <title>Student Dashboard | Tap2Present</title>
 
     <link rel="stylesheet" href="../css/common.css">
-    <link rel="stylesheet" href="../css/student/student-dashboard.css">
+    <link rel="stylesheet" href="../css/student/student-portal.css">
 </head>
 
-<body class="dashboard-page">
+<body class="dashboard-page student-portal">
 
     <div class="dashboard-layout">
 
@@ -24,11 +24,17 @@
 
             <p class="sidebar-heading">STUDENT MENU</p>
 
-            <nav class="sidebar-nav">
+            <nav class="sidebar-nav student-sidebar-nav">
                 <a class="active" href="student-dashboard.html">▦ Dashboard</a>
                 <a href="mark-attendance.html">◉ Mark Attendance</a>
                 <a href="attendance-history.html">▤ Attendance History</a>
+                <a href="attendance-overview.html">◫ Overview</a>
+                <a href="timetable.html">▥ Timetable</a>
+                <a href="notifications.html">♢ Notifications</a>
+                <a href="announcements.html">◈ Announcements</a>
+                <a href="nfc-card.html">⌁ NFC Card</a>
                 <a href="student-profile.html">◎ My Profile</a>
+                <a href="settings.html">⚙ Settings</a>
             </nav>
 
             <div class="sidebar-bottom">
@@ -74,6 +80,11 @@
             <div id="dashboardMessage" class="dashboard-message">
                 Loading your dashboard...
             </div>
+            <button id="dashboardRetry" class="primary-button dashboard-retry" type="button" hidden>
+                Retry loading attendance
+            </button>
+
+            <div id="attendanceAlert" class="alert-card" hidden></div>
 
             <section class="dashboard-section">
 
@@ -110,6 +121,16 @@
 
                 </div>
 
+            </section>
+
+            <section class="dashboard-section">
+                <div class="section-heading">
+                    <h2>Subject-wise Attendance</h2>
+                    <a href="attendance-overview.html">View Overview →</a>
+                </div>
+                <div id="subjectAttendance" class="subject-grid">
+                    <div class="empty-state">Loading subject attendance...</div>
+                </div>
             </section>
 
             <a href="mark-attendance.html" class="attendance-panel">

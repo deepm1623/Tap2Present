@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Attendance Overview | Tap2Present</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/student/student-portal.css">
+</head>
+<body class="dashboard-page student-portal">
+    <div class="dashboard-layout">
+        <aside class="dashboard-sidebar">
+            <a href="student-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a>
+            <p class="sidebar-heading">STUDENT MENU</p>
+            <nav class="sidebar-nav student-sidebar-nav">
+                <a href="student-dashboard.html">▦ Dashboard</a>
+                <a href="mark-attendance.html">◉ Mark Attendance</a>
+                <a href="attendance-history.html">▤ Attendance History</a>
+                <a class="active" href="attendance-overview.html">◫ Overview</a>
+                <a href="timetable.html">▥ Timetable</a>
+                <a href="notifications.html">♢ Notifications</a>
+                <a href="announcements.html">◈ Announcements</a>
+                <a href="nfc-card.html">⌁ NFC Card</a>
+                <a href="student-profile.html">◎ My Profile</a>
+                <a href="settings.html">⚙ Settings</a>
+            </nav>
+            <div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div>
+        </aside>
+        <main class="dashboard-main">
+            <div class="page-title">
+                <p class="dashboard-date">STUDENT PORTAL</p>
+                <h1>Attendance Overview</h1>
+                <p class="dashboard-subtitle">A breakdown of records stored for your account.</p>
+            </div>
+            <div id="overviewMessage" class="dashboard-message">Loading attendance overview...</div>
+            <section class="stats-grid">
+                <div class="stat-card"><p>Attendance</p><h2 id="overviewPercentage">--%</h2><span>Overall</span></div>
+                <div class="stat-card"><p>Total Lectures</p><h2 id="overviewTotal">--</h2><span>Recorded sessions</span></div>
+                <div class="stat-card"><p>Present</p><h2 id="overviewPresent">--</h2><span>Attended</span></div>
+                <div class="stat-card"><p>Absent</p><h2 id="overviewAbsent">--</h2><span>Missed</span></div>
+            </section>
+            <section class="overview-card" style="margin-top:24px">
+                <h2>Attendance comparison</h2>
+                <p class="muted">Each bar represents the present percentage for a subject.</p>
+                <div id="subjectChart" class="subject-grid"></div>
+            </section>
+            <div id="overviewAlert" class="alert-card" style="margin-top:24px" hidden></div>
+        </main>
+    </div>
+    <script type="module" src="../js/student/attendance-overview.js"></script>
+    <script src="../js/Common/popups.js"></script>
+</body>
+</html>

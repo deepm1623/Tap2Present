@@ -18,3 +18,7 @@ Email/password authentication is handled by Firebase Authentication. Each signed
 The faculty attendance page reads NDEF text records in the `TAP2P:STUDENT_ID` format, verifies the student profile, and writes a present record to the `attendance` collection. Student dashboards and history pages read those records. Class/session management, absent calculation, and reporting remain prototype roadmap items.
 
 Run the site through a local web server so browser module imports, the shared popup component, and Firebase requests work correctly. NFC scanning also requires HTTPS and a supported Android browser.
+
+## Student portal status
+
+The student portal provides guarded dashboard, subject summaries, attendance overview, filtered history, profile updates for phone numbers, password reset, and read-only NFC card information. Timetable, notifications, and announcements currently show dependency-aware empty states because no corresponding collections or Admin/Faculty publishing workflows exist in this repository.
