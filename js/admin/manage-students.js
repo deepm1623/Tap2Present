@@ -173,6 +173,13 @@ function getStudentByUid(uid) {
   return students.find(student => student.uid === uid);
 }
 
+function getHighestStudentNumber() {
+  return students.reduce((highest, student) => {
+    const match = String(student.studentId || "").match(/^STU(\d+)$/i);
+    return match ? Math.max(highest, Number(match[1])) : highest;
+  }, 0);
+}
+
 /* =========================================
    AUTHENTICATION AND ADMIN CHECK
 ========================================= */
@@ -442,8 +449,8 @@ async function generateStudentId(transaction) {
   const counterSnapshot = await transaction.get(counterRef);
 
   const lastNumber = counterSnapshot.exists()
-    ? Number(counterSnapshot.data().lastNumber || 2)
-    : 2;
+    ? Number(counterSnapshot.data().lastNumber || 0)
+    : getHighestStudentNumber();
 
   const nextNumber = lastNumber + 1;
 

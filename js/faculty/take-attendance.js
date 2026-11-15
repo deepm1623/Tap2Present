@@ -98,10 +98,7 @@ onAuthStateChanged(auth, async function (user) {
 
         const userData = userSnapshot.data();
 
-        if (
-            userData.role !== "faculty" &&
-            userData.role !== "admin"
-        ) {
+        if (userData.role !== "faculty") {
             await signOut(auth);
             window.location.href = "../login.html";
             return;

@@ -53,14 +53,20 @@ export async function requireRole(expectedRole) {
                 window.location.href = `../${expectedRole}/${expectedRole}-login.html`;
                 return;
             }
-            const snapshot = await getDoc(doc(db, "users", user.uid));
-            const profile = snapshot.exists() ? snapshot.data() : null;
-            if (!profile || profile.role !== expectedRole || profile.status !== "active") {
+            try {
+                const snapshot = await getDoc(doc(db, "users", user.uid));
+                const profile = snapshot.exists() ? snapshot.data() : null;
+                if (!profile || profile.role !== expectedRole || profile.status !== "active") {
+                    await signOut(auth);
+                    window.location.href = `../${expectedRole}/${expectedRole}-login.html`;
+                    return;
+                }
+                resolve({ user, profile });
+            } catch (error) {
+                console.error("Role verification error:", error);
                 await signOut(auth);
                 window.location.href = `../${expectedRole}/${expectedRole}-login.html`;
-                return;
             }
-            resolve({ user, profile });
         });
     });
 }

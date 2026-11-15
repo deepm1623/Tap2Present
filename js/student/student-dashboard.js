@@ -66,7 +66,7 @@ onAuthStateChanged(auth, async function (user) {
 
         if (!userSnapshot.exists()) {
             await signOut(auth);
-            window.location.href = "student/student-login.html";
+            window.location.href = "student-login.html";
             return;
         }
 
