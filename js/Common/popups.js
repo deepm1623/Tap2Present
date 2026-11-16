@@ -1,5 +1,6 @@
 const popupState = {
     activeModal: null,
+    activeClose: null,
     previousFocusedElement: null,
     loadingCount: 0
 };
@@ -40,6 +41,7 @@ function finishModal(modal, result) {
     if (popupState.activeModal === modal) {
         popupState.activeModal = null;
     }
+    popupState.activeClose = null;
 
     updateScrollLock();
     popupState.previousFocusedElement?.focus?.();
@@ -227,6 +229,7 @@ async function showConfirm({
         parts.close.addEventListener("click", cancel);
         parts.modal.addEventListener("click", outsideClick);
         parts.modal.addEventListener("keydown", keydown);
+        popupState.activeClose = cancel;
     });
 }
 
@@ -360,6 +363,7 @@ async function showInput({
         parts.close.addEventListener("click", cancel);
         parts.modal.addEventListener("click", outsideClick);
         parts.modal.addEventListener("keydown", keydown);
+        popupState.activeClose = cancel;
     });
 }
 
@@ -398,8 +402,9 @@ function openAppModal(id) {
 }
 
 document.addEventListener("keydown", event => {
-    if (event.key === "Escape" && popupState.activeModal) {
-        finishModal(popupState.activeModal, false);
+    if (event.key === "Escape" && popupState.activeClose) {
+        event.preventDefault();
+        popupState.activeClose();
     }
 });
 

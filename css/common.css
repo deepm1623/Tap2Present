@@ -120,7 +120,8 @@ button { min-height: 42px; }
     align-items: center;
     justify-content: center;
 
-    padding: 20px;
+    padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right))
+        max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
 
     background: var(--popup-overlay);
     backdrop-filter: blur(9px);
@@ -144,11 +145,12 @@ button { min-height: 42px; }
 .app-modal {
     position: relative;
 
-    width: min(100%, 480px);
-    max-height: 90vh;
+    width: min(100%, 560px);
+    max-height: min(760px, calc(100dvh - 40px));
     overflow-y: auto;
+    scrollbar-gutter: stable;
 
-    padding: 30px;
+    padding: clamp(32px, 4vw, 48px);
 
     color: var(--popup-text);
     background: linear-gradient(145deg, #1d2a35, #151f29);
@@ -174,9 +176,9 @@ button { min-height: 42px; }
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 18px;
+    gap: 24px;
 
-    margin-bottom: 24px;
+    margin-bottom: 28px;
 }
 
 .app-modal-heading {
@@ -197,7 +199,7 @@ button { min-height: 42px; }
     margin: 0;
 
     color: var(--popup-text);
-    font-size: 23px;
+    font-size: clamp(23px, 2vw, 28px);
     font-weight: 700;
 }
 
@@ -205,15 +207,15 @@ button { min-height: 42px; }
     margin: 9px 0 0;
 
     color: var(--popup-muted);
-    font-size: 13px;
-    line-height: 1.6;
+    font-size: 15px;
+    line-height: 1.7;
 }
 
 /* Close button */
 
 .app-modal-close {
-    width: 35px;
-    height: 35px;
+    width: 40px;
+    height: 40px;
     flex-shrink: 0;
 
     display: grid;
@@ -223,7 +225,7 @@ button { min-height: 42px; }
     background: rgba(255, 255, 255, 0.05);
 
     border: 1px solid var(--popup-border);
-    border-radius: 9px;
+    border-radius: 11px;
 
     font-size: 22px;
     cursor: pointer;
@@ -241,7 +243,7 @@ button { min-height: 42px; }
 
 .app-modal-body {
     display: grid;
-    gap: 17px;
+    gap: 20px;
 }
 
 .app-modal-group {
@@ -251,7 +253,7 @@ button { min-height: 42px; }
 
 .app-modal-group label {
     color: #dce3e8;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
 }
 
@@ -313,27 +315,27 @@ button { min-height: 42px; }
     justify-content: flex-end;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px;
+    gap: 12px;
 
-    margin-top: 26px;
+    margin-top: 32px;
 }
 
 /* Buttons */
 
 .app-modal-btn {
-    min-height: 42px;
+    min-height: 48px;
 
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 8px;
 
-    padding: 11px 18px;
+    padding: 13px 24px;
 
     border: 1px solid transparent;
     border-radius: 9px;
 
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 700;
 
     cursor: pointer;
@@ -377,25 +379,25 @@ button { min-height: 42px; }
 /* Confirmation popup */
 
 .app-confirm-modal {
-    width: min(100%, 410px);
-    text-align: center;
+    width: min(100%, 560px);
+    text-align: left;
 }
 
 .app-confirm-icon {
-    width: 58px;
-    height: 58px;
+    width: 72px;
+    height: 72px;
 
     display: grid;
     place-items: center;
 
-    margin: 0 auto 18px;
+    margin: 4px 0 24px;
 
     color: var(--popup-orange-light);
     background: rgba(229, 138, 85, 0.13);
     border: 1px solid rgba(229, 138, 85, 0.2);
     border-radius: 17px;
 
-    font-size: 26px;
+    font-size: 30px;
 }
 
 .app-confirm-icon.danger {
@@ -411,17 +413,17 @@ button { min-height: 42px; }
 }
 
 .app-confirm-modal .app-modal-footer {
-    justify-content: center;
+    justify-content: flex-end;
 }
 
 .app-confirm-modal .app-modal-description {
-    margin-top: 10px;
+    margin-top: 12px;
 }
 
 /* Message popup */
 
 .app-message-modal {
-    width: min(100%, 390px);
+    width: min(100%, 520px);
     text-align: center;
 }
 
@@ -576,6 +578,17 @@ button { min-height: 42px; }
         top: 12px;
         right: 12px;
     }
+
+    .app-confirm-modal .app-modal-footer {
+        justify-content: stretch;
+    }
+
+    .app-confirm-icon {
+        width: 60px;
+        height: 60px;
+        margin-bottom: 20px;
+        font-size: 26px;
+    }
 }
 
 body.app-modal-open {
@@ -594,18 +607,6 @@ body.app-modal-open {
 .app-modal-group textarea:focus-visible {
     outline: 2px solid var(--popup-orange-light);
     outline-offset: 2px;
-}
-
-.app-confirm-modal {
-    text-align: left;
-}
-
-.app-confirm-modal > .app-confirm-icon {
-    margin-top: 4px;
-}
-
-.app-confirm-modal .app-modal-footer {
-    justify-content: flex-end;
 }
 
 .app-confirm-icon.info {
@@ -653,7 +654,7 @@ body.app-modal-open {
 }
 
 .app-loading-modal {
-    width: min(100%, 340px);
+    width: min(100%, 420px);
     text-align: center;
 }
 
@@ -670,15 +671,5 @@ body.app-modal-open {
 @keyframes appPopupSpin {
     to {
         transform: rotate(360deg);
-    }
-}
-
-@media (max-width: 550px) {
-    .app-confirm-modal {
-        text-align: left;
-    }
-
-    .app-confirm-modal .app-modal-footer {
-        justify-content: stretch;
     }
 }
