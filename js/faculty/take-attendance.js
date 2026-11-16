@@ -13,6 +13,8 @@ import {
     query,
     where,
     getDocs,
+    addDoc,
+    updateDoc,
     runTransaction,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
@@ -50,6 +52,8 @@ let scanning = false;
 let processingCard = false;
 let recentScans = [];
 let scanAbortController = null;
+let sessionRef = null;
+let currentUserProfile = null;
 
 // ==========================================
 // DATE AND TIME
@@ -111,6 +115,7 @@ onAuthStateChanged(auth, async function (user) {
         }
 
         currentUser = user;
+        currentUserProfile = userData;
 
         const name = userData.name || "Faculty";
 
@@ -184,12 +189,13 @@ startButton.addEventListener("click", async function () {
             signal: scanAbortController.signal
         });
 
+        sessionRef = await createAttendanceSession();
         scanning = true;
 
         startButton.disabled = true;
         stopButton.disabled = false;
 
-        readerIndicator.textContent = "Scanning";
+        readerIndicator.textContent = "Session active";
         readerIndicator.className = "reader-indicator active";
 
         scannerTitle.textContent = "Scanner is active";
@@ -207,6 +213,12 @@ startButton.addEventListener("click", async function () {
 
     } catch (error) {
         console.error("NFC start error:", error);
+
+        if (scanAbortController) {
+            scanAbortController.abort();
+            scanAbortController = null;
+        }
+        scanning = false;
 
         showResult(
             "Unable to start NFC",
@@ -692,11 +704,30 @@ function stopScanner() {
     processingCard = false;
     ndef = null;
 
+    const hadSession = Boolean(sessionRef);
+    if (sessionRef) {
+        const activeSession = sessionRef;
+        sessionRef = null;
+        stopAttendanceSession(activeSession)
+            .then(function () {
+                readerIndicator.textContent = "Session ended";
+                readerIndicator.className = "reader-indicator";
+            })
+            .catch(function (error) {
+                console.error("Attendance session stop error:", error);
+                showResult(
+                    "Session update failed",
+                    "The scanner stopped, but the attendance session could not be updated.",
+                    "error"
+                );
+            });
+    }
+
     startButton.disabled = false;
     stopButton.disabled = true;
 
-    readerIndicator.textContent = "Not Started";
-    readerIndicator.className = "reader-indicator";
+    readerIndicator.textContent = hadSession ? "Session ending" : "Not Started";
+    readerIndicator.className = hadSession ? "reader-indicator active" : "reader-indicator";
 
     scannerTitle.textContent = "Scanner stopped";
 
@@ -704,6 +735,34 @@ function stopScanner() {
         "Start the scanner when you are ready.";
 
     nfcAnimation.classList.remove("scanning");
+}
+
+async function createAttendanceSession() {
+    const subject = subjectInput.value.trim();
+    const sessionData = {
+        facultyUid: currentUser.uid,
+        facultyName: currentUserProfile.name || "Faculty",
+        subject: subject,
+        subjectName: subject,
+        status: "active",
+        startedAt: serverTimestamp(),
+        endedAt: null
+    };
+
+    ["classId", "className", "semester", "division"].forEach(function (field) {
+        if (currentUserProfile[field] !== undefined && currentUserProfile[field] !== null && currentUserProfile[field] !== "") {
+            sessionData[field] = currentUserProfile[field];
+        }
+    });
+
+    return addDoc(collection(db, "sessions"), sessionData);
+}
+
+async function stopAttendanceSession(activeSession) {
+    await updateDoc(activeSession, {
+        status: "stopped",
+        endedAt: serverTimestamp()
+    });
 }
 
 // ==========================================

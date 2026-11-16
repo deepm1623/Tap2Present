@@ -266,7 +266,7 @@
 
 .student-portal .action-card h2 {
     margin: 0 0 12px;
-    white-space: nowrap;
+    overflow-wrap: anywhere;
 }
 
 .student-portal .action-card > p {
@@ -381,6 +381,61 @@
 
 .student-portal .history-table {
     overflow: hidden;
+}
+
+.student-portal .profile-grid > * {
+    min-width: 0;
+}
+
+.student-portal .session-status-card {
+    overflow-wrap: anywhere;
+}
+
+.student-portal .session-badge {
+    display: inline-flex;
+    min-height: 28px;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    color: var(--student-muted);
+    background: var(--student-card-muted);
+    font-size: 0.72rem;
+    font-weight: 700;
+}
+
+.student-portal .session-badge.active {
+    color: var(--student-success);
+    background: rgba(73, 190, 117, 0.13);
+}
+
+.student-portal .session-badge.ended,
+.student-portal .session-badge.error {
+    color: var(--student-danger);
+    background: rgba(230, 92, 78, 0.13);
+}
+
+.student-portal .session-details {
+    display: grid;
+    gap: 8px;
+    margin: 18px 0;
+}
+
+.student-portal .session-details div {
+    display: grid;
+    grid-template-columns: 70px minmax(0, 1fr);
+    gap: 10px;
+}
+
+.student-portal .session-details dt {
+    color: var(--student-muted);
+    font-size: 0.78rem;
+}
+
+.student-portal .session-details dd {
+    min-width: 0;
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-size: 0.84rem;
 }
 
 .student-portal .history-row {
@@ -873,5 +928,14 @@
     .student-portal .profile-grid,
     .student-portal .settings-grid {
         grid-template-columns: 1fr;
+    }
+
+    .student-portal .action-card {
+        padding: 28px 16px;
+    }
+
+    .student-portal .session-details div {
+        grid-template-columns: 1fr;
+        gap: 3px;
     }
 }

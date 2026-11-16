@@ -1,5 +1,71 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Mark Attendance | Tap2Present</title><link rel="stylesheet" href="../css/common.css"><link rel="stylesheet" href="../css/student/student-portal.css"></head>
-<body class="dashboard-page student-portal"><div class="dashboard-layout"><aside class="dashboard-sidebar"><a href="student-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a><p class="sidebar-heading">STUDENT MENU</p><nav class="sidebar-nav student-sidebar-nav"><a href="student-dashboard.html">▦ Dashboard</a><a class="active" href="mark-attendance.html">◉ Mark Attendance</a><a href="attendance-history.html">▤ Attendance History</a><a href="attendance-overview.html">◫ Overview</a><a href="timetable.html">▥ Timetable</a><a href="notifications.html">♢ Notifications</a><a href="announcements.html">◈ Announcements</a><a href="nfc-card.html">⌁ NFC Card</a><a href="student-profile.html">◎ My Profile</a><a href="settings.html">⚙ Settings</a></nav><div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div></aside><main class="dashboard-main"><div class="page-title"><p class="dashboard-date">STUDENT PORTAL</p><h1>Mark Attendance</h1><p class="dashboard-subtitle">Use your registered NFC/RFID card at the authorized campus reader.</p></div><div class="profile-grid"><section class="overview-card"><h3>NFC card status</h3><p class="muted">Student ID</p><strong data-student-id>Loading...</strong><p id="cardStatus" class="status-note">Checking card registration...</p><p id="lastScan" class="status-note"></p></section><section class="overview-card"><h3>Attendance session</h3><p id="sessionStatus" class="status-note">No active session information is available.</p><p class="muted">Students cannot create attendance records from this page.</p></section></div><section class="action-card"><div class="attendance-icon">◉</div><h2 id="readerTitle">Waiting for authorized reader</h2><p>Attendance is recorded only when an authorized faculty reader verifies your card during an active session.</p><p id="attendance-message" class="auth-message">Web NFC is not a student-side attendance control.</p><ol class="status-note"><li>Keep your registered card ready.</li><li>Tap it on the authorized campus reader.</li><li>Wait for the faculty confirmation.</li></ol></section></main></div><script type="module" src="../js/student/mark-attendance.js"></script><script src="../js/Common/popups.js"></script>
-</body></html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mark Attendance | Tap2Present</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/student/student-portal.css">
+</head>
+<body class="dashboard-page student-portal">
+<div class="dashboard-layout">
+    <aside class="dashboard-sidebar">
+        <a href="student-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a>
+        <p class="sidebar-heading">STUDENT MENU</p>
+        <nav class="sidebar-nav student-sidebar-nav">
+            <a href="student-dashboard.html">▦ Dashboard</a>
+            <a class="active" href="mark-attendance.html">◉ Mark Attendance</a>
+            <a href="attendance-history.html">▤ Attendance History</a>
+            <a href="attendance-overview.html">◫ Overview</a>
+            <a href="timetable.html">▥ Timetable</a>
+            <a href="notifications.html">♢ Notifications</a>
+            <a href="announcements.html">◈ Announcements</a>
+            <a href="nfc-card.html">⌁ NFC Card</a>
+            <a href="student-profile.html">◎ My Profile</a>
+            <a href="settings.html">⚙ Settings</a>
+        </nav>
+        <div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div>
+    </aside>
+    <main class="dashboard-main">
+        <div class="page-title">
+            <p class="dashboard-date">STUDENT PORTAL</p>
+            <h1>Mark Attendance</h1>
+            <p class="dashboard-subtitle">Use your registered NFC/RFID card at the authorized campus reader.</p>
+        </div>
+        <div class="profile-grid">
+            <section class="overview-card">
+                <h3>NFC card status</h3>
+                <p class="muted">Student ID</p>
+                <strong data-student-id>Loading...</strong>
+                <p id="cardStatus" class="status-note">Checking card registration...</p>
+                <p id="lastScan" class="status-note"></p>
+            </section>
+            <section class="overview-card session-status-card">
+                <span id="sessionBadge" class="session-badge">Checking session</span>
+                <h3 id="sessionSubject">Attendance session</h3>
+                <p id="sessionStatus" class="status-note">Loading active session...</p>
+                <dl class="session-details">
+                    <div><dt>Faculty</dt><dd id="sessionFaculty">-</dd></div>
+                    <div><dt>Class</dt><dd id="sessionClass">-</dd></div>
+                    <div><dt>Started</dt><dd id="sessionStarted">-</dd></div>
+                </dl>
+                <p class="muted">Students cannot create attendance records from this page.</p>
+            </section>
+        </div>
+        <section class="action-card">
+            <div class="attendance-icon">◉</div>
+            <h2 id="readerTitle">Waiting for authorized reader</h2>
+            <p id="readerDescription">Attendance is recorded only when an authorized faculty reader verifies your card during an active session.</p>
+            <p id="attendance-message" class="auth-message">Web NFC is not a student-side attendance control.</p>
+            <ol class="status-note">
+                <li>Keep your registered card ready.</li>
+                <li>Tap it on the authorized campus reader.</li>
+                <li>Wait for the faculty confirmation.</li>
+            </ol>
+        </section>
+    </main>
+</div>
+<script type="module" src="../js/student/mark-attendance.js"></script>
+<script src="../js/Common/popups.js"></script>
+</body>
+</html>

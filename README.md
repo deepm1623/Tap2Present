@@ -17,6 +17,20 @@ Email/password authentication is handled by Firebase Authentication. Each signed
 
 The faculty attendance page reads NDEF text records in the `TAP2P:STUDENT_ID` format, verifies the student profile, and writes a present record to the `attendance` collection. Student dashboards and history pages read those records. Class/session management, absent calculation, and reporting remain prototype roadmap items.
 
+## Live attendance sessions
+
+The faculty NFC page creates an automatic-ID document in `sessions` after the NFC scanner starts:
+
+- `facultyUid`, `facultyName`
+- `subject` and `subjectName`
+- `status` (`active` or `stopped`)
+- `startedAt` and `endedAt`
+- optional `classId`, `className`, `semester`, and `division` copied from the faculty profile
+
+Stopping the scanner updates the same document rather than creating another session. The student Mark Attendance page listens to `sessions` with `onSnapshot()`, filters supported class fields against the student's profile, and renders active, ended, empty, loading, and error states. Students never write to `sessions` or `attendance`.
+
+No Firestore rules file is present in this repository. The deployed rules must allow authenticated faculty users to create/update only their own session documents and allow students to read only sessions whose class, semester, and division match their `users/{uid}` profile (or sessions without those optional fields). The existing attendance rules must remain unchanged.
+
 Run the site through a local web server so browser module imports, the shared popup component, and Firebase requests work correctly. NFC scanning also requires HTTPS and a supported Android browser.
 
 ## Student portal status

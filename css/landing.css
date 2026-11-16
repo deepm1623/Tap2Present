@@ -1164,6 +1164,7 @@ a {
     body {
 
         overflow: auto;
+        overflow-x: clip;
 
     }
 
