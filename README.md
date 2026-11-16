@@ -21,7 +21,7 @@ The faculty attendance page reads NDEF text records in the `TAP2P:STUDENT_ID` fo
 
 The faculty NFC page creates an automatic-ID document in `sessions` after the NFC scanner starts:
 
-- `facultyUid`, `facultyName`
+- `sessionId`, `facultyUid`, `facultyName`
 - `subject` and `subjectName`
 - `status` (`active` or `stopped`)
 - `startedAt` and `endedAt`

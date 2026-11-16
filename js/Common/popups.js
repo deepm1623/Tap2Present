@@ -416,4 +416,119 @@ window.showInput = showInput;
 window.showLoading = showLoading;
 window.withLoading = withLoading;
 
+function initializeMobileNavigation() {
+    const sidebar = document.querySelector(
+        ".dashboard-sidebar, .history-sidebar, .nfc-sidebar"
+    );
+
+    if (!sidebar || document.querySelector(".mobile-nav-toggle")) {
+        return;
+    }
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.className = "mobile-nav-toggle";
+    toggle.setAttribute("aria-label", "Open navigation menu");
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.textContent = "☰";
+
+    const backdrop = document.createElement("button");
+    backdrop.type = "button";
+    backdrop.className = "mobile-nav-backdrop";
+    backdrop.setAttribute("aria-label", "Close navigation menu");
+
+    const style = document.createElement("style");
+    style.textContent = `
+        .mobile-nav-toggle,
+        .mobile-nav-backdrop { display: none; }
+        @media (max-width: 900px) {
+            .mobile-nav-toggle {
+                position: fixed;
+                top: max(12px, env(safe-area-inset-top));
+                left: max(12px, env(safe-area-inset-left));
+                z-index: 1002;
+                display: grid;
+                width: 46px;
+                height: 46px;
+                place-items: center;
+                padding: 0;
+                border: 1px solid rgba(255,255,255,.14);
+                border-radius: 12px;
+                color: #fff;
+                background: #192530;
+                box-shadow: 0 10px 24px rgba(0,0,0,.24);
+                cursor: pointer;
+                font-size: 22px;
+            }
+            .mobile-nav-backdrop {
+                position: fixed;
+                inset: 0;
+                z-index: 1000;
+                width: 100%;
+                height: 100%;
+                padding: 0;
+                border: 0;
+                background: rgba(3,8,13,.62);
+                cursor: pointer;
+            }
+            body.mobile-nav-open .mobile-nav-backdrop { display: block; }
+            body.mobile-nav-open .dashboard-sidebar,
+            body.mobile-nav-open .history-sidebar,
+            body.mobile-nav-open .nfc-sidebar {
+                transform: translateX(0) !important;
+            }
+            .dashboard-sidebar,
+            .history-sidebar,
+            .nfc-sidebar {
+                position: fixed !important;
+                inset: 0 auto 0 0;
+                z-index: 1001;
+                width: min(86vw, 310px) !important;
+                min-width: 0 !important;
+                height: 100dvh;
+                max-height: 100dvh;
+                padding-top: max(22px, calc(env(safe-area-inset-top) + 10px)) !important;
+                padding-bottom: max(22px, calc(env(safe-area-inset-bottom) + 10px)) !important;
+                overflow-y: auto;
+                transform: translateX(-105%) !important;
+                transition: transform .22s ease;
+                box-shadow: 18px 0 38px rgba(0,0,0,.28);
+            }
+            .dashboard-main,
+            .history-main,
+            .nfc-main {
+                width: 100%;
+                max-width: none;
+                padding-top: 78px !important;
+            }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .dashboard-sidebar,
+            .history-sidebar,
+            .nfc-sidebar { transition: none; }
+        }
+    `;
+
+    function closeNavigation() {
+        document.body.classList.remove("mobile-nav-open");
+        toggle.setAttribute("aria-expanded", "false");
+        toggle.setAttribute("aria-label", "Open navigation menu");
+    }
+
+    toggle.addEventListener("click", function () {
+        const isOpen = document.body.classList.toggle("mobile-nav-open");
+        toggle.setAttribute("aria-expanded", String(isOpen));
+        toggle.setAttribute("aria-label", isOpen ? "Close navigation menu" : "Open navigation menu");
+    });
+    backdrop.addEventListener("click", closeNavigation);
+    sidebar.querySelectorAll("a").forEach(link => link.addEventListener("click", closeNavigation));
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape") closeNavigation();
+    });
+
+    document.head.appendChild(style);
+    document.body.append(toggle, backdrop);
+}
+
 loadGlobalPopups();
+initializeMobileNavigation();

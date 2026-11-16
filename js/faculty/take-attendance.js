@@ -13,7 +13,7 @@ import {
     query,
     where,
     getDocs,
-    addDoc,
+    setDoc,
     updateDoc,
     runTransaction,
     serverTimestamp
@@ -739,7 +739,22 @@ function stopScanner() {
 
 async function createAttendanceSession() {
     const subject = subjectInput.value.trim();
+    const activeSessions = await getDocs(query(
+        collection(db, "sessions"),
+        where("facultyUid", "==", currentUser.uid),
+        where("status", "==", "active")
+    ));
+
+    await Promise.all(activeSessions.docs.map(function (activeSession) {
+        return updateDoc(activeSession.ref, {
+            status: "stopped",
+            endedAt: serverTimestamp()
+        });
+    }));
+
+    const newSessionRef = doc(collection(db, "sessions"));
     const sessionData = {
+        sessionId: newSessionRef.id,
         facultyUid: currentUser.uid,
         facultyName: currentUserProfile.name || "Faculty",
         subject: subject,
@@ -755,7 +770,8 @@ async function createAttendanceSession() {
         }
     });
 
-    return addDoc(collection(db, "sessions"), sessionData);
+    await setDoc(newSessionRef, sessionData);
+    return newSessionRef;
 }
 
 async function stopAttendanceSession(activeSession) {
