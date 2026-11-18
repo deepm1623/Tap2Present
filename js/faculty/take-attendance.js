@@ -1,5 +1,5 @@
 
-import { auth, db } from "../firebase-config.js";
+import { auth, db } from "../../firebase-config.js";
 
 import {
     onAuthStateChanged,
@@ -27,6 +27,7 @@ const stopButton = document.getElementById("stopScannerButton");
 const readerIndicator = document.getElementById("readerIndicator");
 const scannerTitle = document.getElementById("scannerTitle");
 const scannerDescription = document.getElementById("scannerDescription");
+const nfcAnimation = document.getElementById("nfcAnimation");
 
 const subjectInput = document.getElementById("subjectInput");
 const dateDisplay = document.getElementById("dateDisplay");
@@ -47,6 +48,7 @@ let currentFaculty = null;
 let nfcReader = null;
 let scannerActive = false;
 let processingCard = false;
+let nfcAbortController = null;
 
 const scannedStudents = new Set();
 
@@ -82,10 +84,15 @@ function updateScannerUI(status, title, description) {
     readerIndicator.textContent = status;
     scannerTitle.textContent = title;
     scannerDescription.textContent = description;
+
+    const isScanning = status === "Scanning";
+    readerIndicator.classList.toggle("active", isScanning);
+    readerIndicator.classList.toggle("error", status === "Error" || status === "Unavailable" || status === "Unsupported");
+    nfcAnimation?.classList.toggle("scanning", isScanning);
 }
 
 function showResult(title, message, type = "info") {
-    scanResult.className = `scan-result ${type}-result`;
+    scanResult.className = `scan-result ${type}`;
 
     scanResult.innerHTML = "";
 
@@ -117,6 +124,41 @@ function showToast(message, type = "info") {
 
 function updateScanCount() {
     scanCount.textContent = `${scannedStudents.size} scanned`;
+}
+
+async function loadTodaysScans() {
+    const date = getLocalDate();
+
+    try {
+        const todaysQuery = query(
+            collection(db, "attendance"),
+            where("date", "==", date)
+        );
+        const snapshot = await getDocs(todaysQuery);
+
+        if (snapshot.empty) return;
+
+        const emptyRow = scanTableBody.querySelector(".empty-table");
+        if (emptyRow) scanTableBody.innerHTML = "";
+
+        snapshot.forEach((attendanceDocument) => {
+            const record = attendanceDocument.data();
+            if (!record.studentId) return;
+
+            scannedStudents.add(record.studentId);
+            addStudentToTable(
+                {
+                    name: record.studentName || "Student"
+                },
+                record.studentCode || record.studentId,
+                record.time
+            );
+        });
+
+        updateScanCount();
+    } catch (error) {
+        console.error("Unable to load today's attendance:", error);
+    }
 }
 
 // ---------------------------------------------
@@ -168,6 +210,8 @@ async function initializeFaculty() {
         facultyInitial.textContent =
             currentFaculty.name.charAt(0).toUpperCase();
 
+        await loadTodaysScans();
+
     } catch (error) {
         console.error("Faculty initialization error:", error);
 
@@ -185,6 +229,7 @@ async function initializeFaculty() {
 
 function checkNFCSupport() {
     if (!window.isSecureContext) {
+        console.error("NFC support detected: false (secure context required)");
         showResult(
             "Secure connection required",
             "Open this page using your HTTPS Vercel URL. NFC does not work on an ordinary HTTP connection.",
@@ -202,6 +247,7 @@ function checkNFCSupport() {
     }
 
     if (!("NDEFReader" in window)) {
+        console.error("NFC support detected: false (NDEFReader unavailable)");
         showResult(
             "Web NFC not supported",
             "Use a compatible Android phone with NFC and a supported browser such as Chrome.",
@@ -218,6 +264,7 @@ function checkNFCSupport() {
         return false;
     }
 
+    console.log("NFC support detected: true");
     return true;
 }
 
@@ -257,6 +304,8 @@ function getNFCErrorMessage(error) {
 // ---------------------------------------------
 
 async function startScanner() {
+    console.log("Button click detected: Start NFC Scanner");
+
     if (scannerActive) return;
 
     if (!currentFaculty) {
@@ -275,23 +324,19 @@ async function startScanner() {
     try {
         // Create reader only after the user clicks the button.
         nfcReader = new NDEFReader();
+        nfcAbortController = new AbortController();
 
         // Attach reading events before requesting scan.
         nfcReader.addEventListener("reading", handleNFCReading);
 
-        nfcReader.addEventListener("readingerror", () => {
-            showResult(
-                "Unable to read card",
-                "Keep the NFC card close to the phone and try again.",
-                "error"
-            );
-        });
+        nfcReader.addEventListener("readingerror", handleNFCReadingError);
 
         // IMPORTANT:
         // scan() is called directly from the Start button interaction.
-        await nfcReader.scan();
+        await nfcReader.scan({ signal: nfcAbortController.signal });
 
         scannerActive = true;
+        console.log("NFC scanning started");
 
         startButton.disabled = true;
         stopButton.disabled = false;
@@ -311,7 +356,13 @@ async function startScanner() {
         showToast("NFC scanner started successfully.", "success");
 
     } catch (error) {
+        if (error.name === "AbortError" && !scannerActive) {
+            console.log("NFC scanning stopped");
+            return;
+        }
+
         scannerActive = false;
+        nfcAbortController = null;
 
         startButton.disabled = false;
         stopButton.disabled = true;
@@ -331,6 +382,7 @@ async function startScanner() {
         );
 
         console.error("Scanner startup failed:", error);
+        console.error("Permission or scan error:", error);
     }
 }
 
@@ -339,19 +391,22 @@ async function startScanner() {
 // ---------------------------------------------
 
 async function stopScanner() {
+    console.log("Button click detected: Stop Scanner");
+
     try {
         if (nfcReader) {
             nfcReader.removeEventListener("reading", handleNFCReading);
-
-            if (typeof nfcReader.abort === "function") {
-                await nfcReader.abort();
-            }
+            nfcReader.removeEventListener("readingerror", handleNFCReadingError);
+        }
+        if (nfcAbortController) {
+            nfcAbortController.abort();
         }
     } catch (error) {
         console.warn("NFC stop warning:", error);
     }
 
     nfcReader = null;
+    nfcAbortController = null;
     scannerActive = false;
     processingCard = false;
 
@@ -375,11 +430,13 @@ async function handleNFCReading(event) {
     if (!scannerActive || processingCard) return;
 
     processingCard = true;
+    console.log("NFC tag detected");
 
     try {
-        const studentCode = readStudentCode(event.message);
+        const studentCode = readStudentCode(event.message, event.serialNumber);
 
         if (!studentCode) {
+            console.warn("Student ID extracted: none");
             showResult(
                 "Invalid NFC card",
                 "This card does not contain a valid Tap2Present student ID.",
@@ -402,24 +459,39 @@ async function handleNFCReading(event) {
 
     } finally {
         processingCard = false;
+        if (scannerActive) {
+            startButton.disabled = true;
+            stopButton.disabled = false;
+        }
     }
+}
+
+function handleNFCReadingError() {
+    console.error("Permission or scan error: unable to read NFC card");
+    showResult(
+        "Unable to read card",
+        "Keep the NFC card close to the phone and try again.",
+        "error"
+    );
 }
 
 // ---------------------------------------------
 // EXTRACT STUDENT ID FROM NDEF MESSAGE
 // ---------------------------------------------
 
-function readStudentCode(message) {
+function readStudentCode(message, serialNumber) {
     for (const record of message.records) {
         try {
             let text = "";
 
             if (record.recordType === "text") {
-                const decoder = new TextDecoder(
-                    record.encoding || "utf-8"
-                );
+                const data = new Uint8Array(record.data);
+                if (data.length === 0) continue;
 
-                text = decoder.decode(record.data);
+                const status = data[0];
+                const languageCodeLength = status & 0x3f;
+                text = new TextDecoder(status & 0x80 ? "utf-16" : "utf-8")
+                    .decode(data.slice(1 + languageCodeLength));
 
             } else if (record.recordType === "mime") {
                 const decoder = new TextDecoder();
@@ -431,15 +503,26 @@ function readStudentCode(message) {
             }
 
             text = text.trim();
+            console.log("NDEF record decoded:", text);
 
-            const match = text.match(/TAP2P:\s*([A-Z0-9_-]+)/i);
+            const match = text.match(/(?:TAP2P:\s*)?([A-Z]+\d{3,})/i);
 
             if (match) {
-                return match[1].toUpperCase();
+                const studentCode = match[1].toUpperCase();
+                console.log("Student ID extracted:", studentCode);
+                return studentCode;
             }
 
         } catch (error) {
             console.warn("Unable to decode NFC record:", error);
+        }
+    }
+
+    if (serialNumber) {
+        const normalizedSerial = String(serialNumber).replace(/[^A-Z0-9]/gi, "").toUpperCase();
+        if (normalizedSerial) {
+            console.log("Student ID extracted from NFC card serial:", normalizedSerial);
+            return normalizedSerial;
         }
     }
 
@@ -451,20 +534,30 @@ function readStudentCode(message) {
 // ---------------------------------------------
 
 async function findStudent(studentCode) {
-    const studentsQuery = query(
+    const studentIdQuery = query(
         collection(db, "users"),
         where("studentId", "==", studentCode),
         where("role", "==", "student")
     );
-
-    const snapshot = await getDocs(studentsQuery);
+    let snapshot = await getDocs(studentIdQuery);
 
     if (snapshot.empty) {
-        throw new Error("Student ID was not found in the system.");
+        for (const cardField of ["nfcCardId", "nfcCardUid", "cardId"]) {
+            const cardQuery = query(
+                collection(db, "users"),
+                where(cardField, "==", studentCode),
+                where("role", "==", "student")
+            );
+            snapshot = await getDocs(cardQuery);
+            if (!snapshot.empty) break;
+        }
+    }
+
+    if (snapshot.empty) {
+        throw new Error("Student ID or card identifier was not found in the system.");
     }
 
     const studentDocument = snapshot.docs[0];
-
     return {
         uid: studentDocument.id,
         ...studentDocument.data()
@@ -488,14 +581,20 @@ async function markStudentAttendance(studentCode) {
         `Checking student ID ${studentCode}...`,
         "info"
     );
+    startButton.disabled = true;
+    stopButton.disabled = true;
 
     const student = await findStudent(studentCode);
 
     if (student.status !== "active") {
+        startButton.disabled = false;
+        stopButton.disabled = false;
         throw new Error("This student account is inactive.");
     }
 
     if (scannedStudents.has(student.uid)) {
+        startButton.disabled = false;
+        stopButton.disabled = false;
         showResult(
             "Already scanned",
             `${student.name} has already been scanned during this session.`,
@@ -536,6 +635,8 @@ async function markStudentAttendance(studentCode) {
     });
 
     scannedStudents.add(student.uid);
+    startButton.disabled = false;
+    stopButton.disabled = false;
 
     updateScanCount();
     addStudentToTable(student, studentCode);
@@ -550,13 +651,19 @@ async function markStudentAttendance(studentCode) {
         `${student.name || studentCode} marked present.`,
         "success"
     );
+    console.log("Attendance successfully recorded:", {
+        studentId: studentCode,
+        uid: student.uid,
+        subject,
+        date
+    });
 }
 
 // ---------------------------------------------
 // ADD STUDENT TO TODAY'S TABLE
 // ---------------------------------------------
 
-function addStudentToTable(student, studentCode) {
+function addStudentToTable(student, studentCode, scannedTime) {
     const emptyRow = scanTableBody.querySelector(".empty-table");
 
     if (emptyRow) {
@@ -572,7 +679,7 @@ function addStudentToTable(student, studentCode) {
     nameCell.textContent = student.name || "Student";
 
     const timeCell = document.createElement("td");
-    timeCell.textContent = getLocalTime();
+    timeCell.textContent = scannedTime || getLocalTime();
 
     const statusCell = document.createElement("td");
     statusCell.textContent = "Present";
