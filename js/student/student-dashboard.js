@@ -122,6 +122,13 @@ function updateStudentHeader(profile) {
 function listenForAttendanceSessions(profile) {
     unsubscribeSessions?.();
 
+    console.log("Active session query: collection=sessions, status in [active,completed,stopped]");
+    console.log("Student academic details:", {
+        className: profile.className || profile.classId || profile.department || null,
+        semester: profile.semester ?? null,
+        division: profile.division || null
+    });
+
     const sessionsQuery = query(
         collection(db, "sessions"),
         where("status", "in", ["active", "completed", "stopped"])
@@ -140,7 +147,15 @@ function listenForAttendanceSessions(profile) {
                     getSessionTimestamp(right.startTime || right.startedAt) -
                     getSessionTimestamp(left.startTime || left.startedAt));
 
-            renderAttendanceSessions(sessions);
+            console.log("Active session query result:", snapshot.size);
+            console.log("Session matching results:", sessions.map(sessionData => ({
+                id: sessionData.id,
+                status: sessionData.status,
+                className: sessionData.className || sessionData.classId || sessionData.class || null,
+                semester: sessionData.semester ?? null,
+                division: sessionData.division || null
+            })));
+            renderAttendanceSessions(sessions, profile);
         },
         error => {
             console.error("Student attendance sessions listener error:", error);
@@ -152,28 +167,44 @@ function listenForAttendanceSessions(profile) {
 }
 
 function isSessionApplicableToStudent(sessionData, profile) {
-    const profileClass = profile.className || profile.classId || profile.department || "";
+    const profileClass = profile.className || profile.classId || profile.class || profile.department || "";
     const sessionClass = sessionData.className || sessionData.classId || sessionData.class || "";
 
+    if (!profileClass || profile.semester == null || profile.division == null) {
+        console.warn("Student profile academic details are incomplete:", {
+            className: profileClass || null,
+            semester: profile.semester ?? null,
+            division: profile.division || null
+        });
+        return false;
+    }
+
     if (sessionClass && profileClass &&
-        String(sessionClass).toLowerCase() !== String(profileClass).toLowerCase()) {
+        normalizeAcademicValue(sessionClass) !== normalizeAcademicValue(profileClass)) {
         return false;
     }
 
     if (sessionData.semester && profile.semester &&
-        String(sessionData.semester) !== String(profile.semester)) {
+        normalizeAcademicValue(sessionData.semester) !== normalizeAcademicValue(profile.semester)) {
         return false;
     }
 
     if (sessionData.division && profile.division &&
-        String(sessionData.division).toLowerCase() !== String(profile.division).toLowerCase()) {
+        normalizeAcademicValue(sessionData.division) !== normalizeAcademicValue(profile.division)) {
         return false;
     }
 
     return true;
 }
 
-function renderAttendanceSessions(sessions) {
+function normalizeAcademicValue(value) {
+    return String(value ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "");
+}
+
+function renderAttendanceSessions(sessions, profile) {
     attendanceSessions.replaceChildren();
     const activeCount = sessions.filter(sessionData => sessionData.status === "active").length;
     activeSessionsCount.textContent = activeCount
@@ -181,8 +212,12 @@ function renderAttendanceSessions(sessions) {
         : "No active sessions";
 
     if (!sessions.length) {
-        attendanceSessions.innerHTML =
-            '<div class="empty-state"><strong>No attendance sessions available.</strong>Faculty can start a session for your class.</div>';
+        const profileClass = profile.className || profile.classId || profile.class || profile.department;
+        const missingDetails = !profileClass || profile.semester == null || !profile.division;
+
+        attendanceSessions.innerHTML = missingDetails
+            ? '<div class="empty-state"><strong>Your academic details are incomplete.</strong>Update class, semester and division in My Profile or ask an administrator to update your student account.</div>'
+            : '<div class="empty-state"><strong>No attendance sessions available.</strong>Faculty can start a session for your class.</div>';
         return;
     }
 

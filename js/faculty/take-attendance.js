@@ -645,6 +645,8 @@ async function handleNFCReading(event) {
 
     processingCard = true;
     console.log("NFC tag detected");
+    console.log("Raw NFC data:", event.message);
+    console.log("NFC serial number:", event.serialNumber || "Not available");
 
     try {
         const studentCode = readStudentCode(event.message, event.serialNumber);
@@ -664,10 +666,16 @@ async function handleNFCReading(event) {
 
     } catch (error) {
         console.error("Card reading error:", error);
+        console.error("Firestore permission or scan error:", {
+            code: error.code || "unknown",
+            message: error.message
+        });
 
         showResult(
             "Scan failed",
-            error.message || "Something went wrong while processing this card.",
+            error.code
+                ? `${error.code}: ${error.message}`
+                : (error.message || "Something went wrong while processing this card."),
             "error"
         );
 
@@ -718,11 +726,13 @@ function readStudentCode(message, serialNumber) {
 
             text = text.trim();
             console.log("NDEF record decoded:", text);
+            console.log("Raw NFC text record:", text);
 
-            const match = text.match(/(?:TAP2P:\s*)?([A-Z]+\d{3,})/i);
+            const match = text.match(/^TAP2P:\s*([A-Z]+\d+)\s*$/i)
+                || text.match(/TAP2P:\s*([A-Z]+\d+)/i);
 
             if (match) {
-                const studentCode = match[1].toUpperCase();
+                const studentCode = match[1].replace(/\s+/g, "").toUpperCase();
                 console.log("Student ID extracted:", studentCode);
                 return studentCode;
             }
@@ -748,34 +758,73 @@ function readStudentCode(message, serialNumber) {
 // ---------------------------------------------
 
 async function findStudent(studentCode) {
-    const studentIdQuery = query(
-        collection(db, "users"),
-        where("studentId", "==", studentCode),
-        where("role", "==", "student")
-    );
-    let snapshot = await getDocs(studentIdQuery);
+    const normalizedCode = String(studentCode).trim().replace(/\s+/g, "").toUpperCase();
+    console.log("Firestore collection searched: users");
+    console.log("NFC student ID lookup:", normalizedCode);
 
-    if (snapshot.empty) {
-        for (const cardField of ["nfcCardId", "nfcCardUid", "cardId"]) {
-            const cardQuery = query(
-                collection(db, "users"),
-                where(cardField, "==", studentCode),
-                where("role", "==", "student")
-            );
-            snapshot = await getDocs(cardQuery);
-            if (!snapshot.empty) break;
+    try {
+        const studentIdQuery = query(
+            collection(db, "users"),
+            where("studentId", "==", normalizedCode)
+        );
+        let snapshot = await getDocs(studentIdQuery);
+        console.log("Number of matching student documents:", snapshot.size);
+
+        // Compatibility fallback for profiles that may contain whitespace or
+        // lowercase student IDs. The primary lookup above remains the exact query.
+        if (snapshot.empty) {
+            const allUsers = await getDocs(collection(db, "users"));
+            snapshot = allUsers;
+            snapshot = snapshot.docs.filter((studentDocument) => {
+                const data = studentDocument.data();
+                const storedId = String(data.studentId || "")
+                    .trim()
+                    .replace(/\s+/g, "")
+                    .toUpperCase();
+                return storedId === normalizedCode;
+            });
+            console.log("Number of normalized matching student documents:", snapshot.length);
+        } else {
+            snapshot = snapshot.docs;
         }
-    }
 
-    if (snapshot.empty) {
-        throw new Error("Student ID or card identifier was not found in the system.");
-    }
+        if (!snapshot.length) {
+            throw new Error(`Student ID ${normalizedCode} was not found in users.`);
+        }
 
-    const studentDocument = snapshot.docs[0];
-    return {
-        uid: studentDocument.id,
-        ...studentDocument.data()
-    };
+        const studentDocument = snapshot.find((documentSnapshot) => {
+            const data = documentSnapshot.data();
+            return data.role === "student";
+        }) || snapshot[0];
+
+        const data = studentDocument.data();
+        console.log("Student academic details:", {
+            name: data.name,
+            studentId: data.studentId,
+            className: data.className || data.classId || data.department || null,
+            semester: data.semester ?? null,
+            division: data.division || null
+        });
+
+        if (data.role !== "student") {
+            throw new Error(`The matching document for ${normalizedCode} is not a student account.`);
+        }
+        if (String(data.status).toLowerCase() !== "active") {
+            throw new Error(`Student ${normalizedCode} is inactive.`);
+        }
+
+        return {
+            uid: studentDocument.id,
+            ...data
+        };
+    } catch (error) {
+        console.error("Firestore student lookup error:", {
+            code: error.code || "unknown",
+            message: error.message,
+            studentId: normalizedCode
+        });
+        throw error;
+    }
 }
 
 // ---------------------------------------------

@@ -492,6 +492,9 @@ async function createStudentAccount(studentData) {
         status: "active",
         studentId: generatedId,
         department: studentData.department.trim(),
+        className: studentData.department.trim(),
+        classId: studentData.department.trim(),
+        class: studentData.department.trim(),
         division: studentData.division,
         semester: normalizeSemester(studentData.semester),
         createdBy: currentAdmin.uid,
@@ -809,6 +812,9 @@ editStudentForm.addEventListener("submit", async event => {
     await window.withLoading(
       () => updateDoc(doc(db, "users", uid), {
         ...updatedInfo,
+        className: updatedInfo.department,
+        classId: updatedInfo.department,
+        class: updatedInfo.department,
         updatedAt: serverTimestamp()
       }),
       "Saving student information.",
@@ -882,7 +888,7 @@ copyNfcButton.addEventListener("click", async () => {
 
 downloadTemplateButton.addEventListener("click", () => {
   const csvContent = [
-    "name,email,password,department,semester",
+    "name,email,password,department,semester,division",
     "Example Student,example@example.com,Temp1234,Computer,3"
   ].join("\n");
 
@@ -1056,7 +1062,8 @@ function validateImportRows(rows) {
       email: normalizeEmail(row.email),
       password: String(row.password || "").trim(),
       department: String(row.department || "").trim(),
-      semester: String(row.semester || "").trim()
+      semester: String(row.semester || "").trim(),
+      division: String(row.division || "").trim()
     };
 
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;

@@ -41,6 +41,7 @@ const sessionsQuery = query(
 const unsubscribe = onSnapshot(
     sessionsQuery,
     snapshot => {
+        console.log("Active session query result:", snapshot.size);
         const applicableSessions = snapshot.docs
             .map(document => ({ id: document.id, ...document.data() }))
             .filter(isApplicableSession)
@@ -67,15 +68,26 @@ window.addEventListener("pagehide", unsubscribe, { once: true });
 
 function isApplicableSession(sessionData) {
     const applicableFields = ["classId", "className", "semester", "division"];
-    return applicableFields.every(field => {
+    const result = applicableFields.every(field => {
         if (sessionData[field] === undefined || sessionData[field] === null || sessionData[field] === "") {
             return true;
         }
         const profileValue = field === "classId" || field === "className"
-            ? (profile.className || profile.classId || profile.department)
+            ? (profile.className || profile.classId || profile.class || profile.department)
             : profile[field];
         return String(sessionData[field]).toLowerCase() === String(profileValue || "").toLowerCase();
     });
+    console.log("Session matching result:", {
+        sessionId: sessionData.id,
+        applicable: result,
+        sessionClass: sessionData.className || sessionData.classId || sessionData.class || null,
+        studentClass: profile.className || profile.classId || profile.class || profile.department || null,
+        sessionSemester: sessionData.semester ?? null,
+        studentSemester: profile.semester ?? null,
+        sessionDivision: sessionData.division || null,
+        studentDivision: profile.division || null
+    });
+    return result;
 }
 
 function renderSession(sessionData) {

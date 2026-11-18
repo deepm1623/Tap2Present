@@ -9,6 +9,10 @@ const profileForm = document.getElementById("profileForm");
 const phoneInput = document.getElementById("phone");
 const profileMessage = document.getElementById("profileMessage");
 
+if (!profile.className) {
+    profile.className = profile.classId || profile.class || profile.department || "";
+}
+
 document.querySelectorAll("[data-profile-field]").forEach(element => {
     const field = element.dataset.profileField;
     const value = profile[field];

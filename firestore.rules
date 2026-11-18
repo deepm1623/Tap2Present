@@ -41,12 +41,14 @@ service cloud.firestore {
               !('className' in resource.data)
               || resource.data.className == userProfile().className
               || resource.data.className == userProfile().classId
+              || resource.data.className == userProfile().class
               || resource.data.className == userProfile().department
             )
             && (
               !('classId' in resource.data)
               || resource.data.classId == userProfile().classId
               || resource.data.classId == userProfile().className
+              || resource.data.classId == userProfile().class
               || resource.data.classId == userProfile().department
             )
             && (
