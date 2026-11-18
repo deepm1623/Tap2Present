@@ -1,1 +1,375 @@
-.action-card { max-width: 680px; text-align: center; }
+.mark-attendance-page {
+    --mark-glass: linear-gradient(180deg, rgba(32, 46, 58, 0.78), rgba(18, 28, 36, 0.88));
+    --mark-stroke: rgba(229, 138, 85, 0.28);
+    --mark-glow: rgba(229, 138, 85, 0.18);
+}
+
+.mark-attendance-page .mark-attendance-main {
+    background:
+        radial-gradient(ellipse at top right, rgba(229, 138, 85, 0.16), transparent 42%),
+        radial-gradient(ellipse at bottom left, rgba(80, 108, 122, 0.18), transparent 46%),
+        var(--student-bg);
+}
+
+.mark-attendance-page .mark-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 22px;
+}
+
+.mark-attendance-page .mark-header h1 {
+    margin: 0 0 8px;
+    font-size: clamp(2rem, 4vw, 3.1rem);
+    letter-spacing: -0.03em;
+}
+
+.mark-attendance-page .mark-kicker {
+    margin: 0 0 8px;
+    color: var(--student-accent);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+}
+
+.mark-attendance-page .nfc-status-card,
+.mark-attendance-page .nfc-stage,
+.mark-attendance-page .result-panel,
+.mark-attendance-page .history-panel {
+    position: relative;
+    overflow: hidden;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 22px;
+    background: var(--mark-glass);
+    box-shadow:
+        0 18px 40px rgba(0, 0, 0, 0.18),
+        inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(16px);
+}
+
+.mark-attendance-page .nfc-status-card {
+    display: grid;
+    grid-template-columns: minmax(220px, 0.8fr) minmax(0, 1.4fr);
+    gap: 22px;
+    margin-bottom: 22px;
+    padding: 26px;
+}
+
+.mark-attendance-page .nfc-status-intro h2,
+.mark-attendance-page .nfc-stage h2,
+.mark-attendance-page .panel-heading h2 {
+    margin: 0;
+    font-size: 1.35rem;
+}
+
+.mark-attendance-page .nfc-status-intro p,
+.mark-attendance-page .nfc-stage-copy,
+.mark-attendance-page .nfc-stage-note,
+.mark-attendance-page .result-empty p {
+    margin: 8px 0 0;
+    color: var(--student-muted);
+    line-height: 1.55;
+}
+
+.mark-attendance-page .nfc-status-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.mark-attendance-page .nfc-status-grid article {
+    min-width: 0;
+    padding: 14px 16px;
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 14px;
+    background: rgba(10, 16, 22, 0.35);
+}
+
+.mark-attendance-page .nfc-status-grid span,
+.mark-attendance-page .result-details dt {
+    display: block;
+    color: #8d9ba6;
+    font-size: 0.72rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.mark-attendance-page .nfc-status-grid strong,
+.mark-attendance-page .result-details dd {
+    display: block;
+    margin-top: 6px;
+    overflow-wrap: anywhere;
+    color: var(--student-text);
+}
+
+.mark-attendance-page .nfc-status-flag {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-top: 4px;
+}
+
+.mark-attendance-page .nfc-status-flag p {
+    margin: 0;
+    color: var(--student-muted);
+    font-size: 0.9rem;
+}
+
+.mark-attendance-page .card-status-badge,
+.mark-attendance-page .result-badge {
+    display: inline-flex;
+    align-items: center;
+    min-height: 30px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+}
+
+.mark-attendance-page .card-status-badge.registered,
+.mark-attendance-page .result-badge.present {
+    color: var(--student-success);
+    background: rgba(73, 190, 117, 0.14);
+}
+
+.mark-attendance-page .card-status-badge.missing,
+.mark-attendance-page .result-badge.absent,
+.mark-attendance-page .result-badge.error {
+    color: var(--student-danger);
+    background: rgba(230, 92, 78, 0.14);
+}
+
+.mark-attendance-page .result-badge.idle {
+    color: var(--student-accent-soft);
+    background: rgba(229, 138, 85, 0.14);
+}
+
+.mark-attendance-page .nfc-stage {
+    display: grid;
+    justify-items: center;
+    margin-bottom: 22px;
+    padding: 48px 28px 36px;
+    text-align: center;
+    border-color: var(--mark-stroke);
+    background:
+        radial-gradient(circle at 50% 18%, var(--mark-glow), transparent 36%),
+        var(--mark-glass);
+}
+
+.mark-attendance-page .nfc-orb {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 220px;
+    height: 220px;
+    margin-bottom: 8px;
+}
+
+.mark-attendance-page .nfc-ring {
+    position: absolute;
+    inset: 18px;
+    border: 1px solid rgba(229, 138, 85, 0.28);
+    border-radius: 50%;
+    animation: nfcPulse 3.4s ease-out infinite;
+}
+
+.mark-attendance-page .nfc-ring:nth-child(2) {
+    inset: 36px;
+    animation-delay: 0.55s;
+}
+
+.mark-attendance-page .nfc-ring:nth-child(3) {
+    inset: 54px;
+    animation-delay: 1.1s;
+}
+
+.mark-attendance-page .nfc-core {
+    display: grid;
+    place-items: center;
+    width: 92px;
+    height: 92px;
+    border-radius: 28px;
+    color: #1a1511;
+    background: linear-gradient(160deg, #f0a275, #d86f42);
+    box-shadow: 0 12px 30px rgba(216, 111, 66, 0.35);
+}
+
+.mark-attendance-page .nfc-core svg {
+    width: 46px;
+    height: 46px;
+}
+
+.mark-attendance-page .nfc-stage-copy {
+    max-width: 520px;
+    font-size: 1.05rem;
+}
+
+.mark-attendance-page .nfc-steps {
+    display: grid;
+    gap: 8px;
+    width: min(100%, 560px);
+    margin: 22px 0 0;
+    padding: 0;
+    list-style: none;
+    text-align: left;
+}
+
+.mark-attendance-page .nfc-steps li {
+    padding: 12px 14px;
+    border-left: 3px solid var(--student-accent);
+    border-radius: 10px;
+    color: #d5dde3;
+    background: rgba(10, 16, 22, 0.28);
+    font-size: 0.92rem;
+}
+
+.mark-attendance-page .nfc-stage-note {
+    max-width: 620px;
+    font-size: 0.84rem;
+}
+
+.mark-attendance-page .mark-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+    gap: 22px;
+}
+
+.mark-attendance-page .result-panel,
+.mark-attendance-page .history-panel {
+    padding: 24px;
+}
+
+.mark-attendance-page .panel-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.mark-attendance-page .view-all-link {
+    color: var(--student-accent-soft);
+    font-size: 0.86rem;
+    font-weight: 700;
+}
+
+.mark-attendance-page .result-details {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+    margin: 0;
+}
+
+.mark-attendance-page .result-details div {
+    padding: 12px 14px;
+    border-radius: 12px;
+    background: rgba(10, 16, 22, 0.32);
+}
+
+.mark-attendance-page .result-details dd {
+    margin: 6px 0 0;
+}
+
+.mark-attendance-page .result-empty {
+    padding: 28px 8px 18px;
+    text-align: center;
+}
+
+.mark-attendance-page .result-empty strong {
+    display: block;
+    color: var(--student-text);
+}
+
+.mark-attendance-page .recent-list {
+    display: grid;
+    gap: 10px;
+}
+
+.mark-attendance-page .recent-item {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 12px;
+    align-items: center;
+    padding: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    border-radius: 14px;
+    background: rgba(10, 16, 22, 0.28);
+}
+
+.mark-attendance-page .recent-item strong {
+    display: block;
+    overflow-wrap: anywhere;
+}
+
+.mark-attendance-page .recent-item p,
+.mark-attendance-page .recent-meta span {
+    margin: 6px 0 0;
+    color: var(--student-muted);
+    font-size: 0.8rem;
+}
+
+.mark-attendance-page .recent-meta {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px 12px;
+}
+
+.mark-attendance-page .recent-meta .status-badge {
+    margin-top: 0;
+}
+
+.mark-attendance-page .page-message.error {
+    color: var(--student-danger);
+}
+
+@keyframes nfcPulse {
+    0% {
+        transform: scale(0.86);
+        opacity: 0.7;
+    }
+    100% {
+        transform: scale(1.18);
+        opacity: 0;
+    }
+}
+
+@media (max-width: 1100px) {
+    .mark-attendance-page .nfc-status-card,
+    .mark-attendance-page .mark-split {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 760px) {
+    .mark-attendance-page .mark-header,
+    .mark-attendance-page .nfc-status-flag,
+    .mark-attendance-page .panel-heading,
+    .mark-attendance-page .recent-item {
+        display: block;
+    }
+
+    .mark-attendance-page .student-mini-profile,
+    .mark-attendance-page .view-all-link,
+    .mark-attendance-page .recent-meta {
+        margin-top: 16px;
+    }
+
+    .mark-attendance-page .nfc-status-grid,
+    .mark-attendance-page .result-details {
+        grid-template-columns: 1fr;
+    }
+
+    .mark-attendance-page .nfc-stage {
+        padding: 36px 18px 28px;
+    }
+
+    .mark-attendance-page .nfc-orb {
+        width: 180px;
+        height: 180px;
+    }
+}

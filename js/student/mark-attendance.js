@@ -7,160 +7,214 @@ import {
     where
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
-const sessionBadge = document.getElementById("sessionBadge");
-const sessionSubject = document.getElementById("sessionSubject");
-const sessionStatus = document.getElementById("sessionStatus");
-const sessionFaculty = document.getElementById("sessionFaculty");
-const sessionClass = document.getElementById("sessionClass");
-const sessionStarted = document.getElementById("sessionStarted");
-const readerTitle = document.getElementById("readerTitle");
-const readerDescription = document.getElementById("readerDescription");
-const cardStatus = document.getElementById("cardStatus");
-const lastScan = document.getElementById("lastScan");
+const pageMessage = document.getElementById("pageMessage");
+const statusStudentId = document.getElementById("statusStudentId");
+const statusStudentName = document.getElementById("statusStudentName");
+const statusRegistration = document.getElementById("statusRegistration");
+const statusCardUid = document.getElementById("statusCardUid");
+const cardStatusBadge = document.getElementById("cardStatusBadge");
+const cardStatusNote = document.getElementById("cardStatusNote");
+const latestResult = document.getElementById("latestResult");
+const latestStatusBadge = document.getElementById("latestStatusBadge");
+const recentHistory = document.getElementById("recentHistory");
 
-const session = await setupStudentPortal();
-const profile = session.profile;
-const registeredCard = profile.nfcCardId || profile.nfcCardUid || profile.cardId;
-const hasRegistration = Boolean(profile.nfcRegistered === true || registeredCard);
+let unsubscribeAttendance = null;
 
-cardStatus.textContent = hasRegistration
-    ? "Registered card information is available."
-    : "No NFC registration information is stored for this account.";
+try {
+    const session = await setupStudentPortal();
+    const studentUid = session.user.uid;
+    const profile = session.profile || {};
 
-if (profile.lastNfcScanAt) {
-    lastScan.textContent = `Last successful scan: ${formatTimestamp(profile.lastNfcScanAt)}`;
+    renderCardStatus(profile);
+    listenForAttendance(studentUid, profile);
+} catch (error) {
+    console.error("Mark attendance page error:", error);
+    setPageMessage("Unable to verify your student account. Please sign in again.", true);
 }
 
-setSessionState("loading");
+function renderCardStatus(profile) {
+    const studentId = profile.studentId || "Not assigned";
+    const studentName = profile.name || "Student";
+    const cardUid = profile.nfcCardId || profile.nfcCardUid || profile.cardId || "";
+    const registered = profile.nfcRegistered === true || Boolean(cardUid);
 
-const sessionsQuery = query(
-    collection(db, "sessions"),
-    where("status", "in", ["active", "completed", "stopped"])
-);
+    statusStudentId.textContent = studentId;
+    statusStudentName.textContent = studentName;
+    statusRegistration.textContent = registered ? "Registered" : "Not registered";
+    statusCardUid.textContent = cardUid || "Not available";
 
-const unsubscribe = onSnapshot(
-    sessionsQuery,
-    snapshot => {
-        console.log("Active session query result:", snapshot.size);
-        const applicableSessions = snapshot.docs
-            .map(document => ({ id: document.id, ...document.data() }))
-            .filter(isApplicableSession)
-            .sort((left, right) => getTimestamp(right.startedAt) - getTimestamp(left.startedAt));
+    cardStatusBadge.textContent = registered ? "Registered" : "Not Registered";
+    cardStatusBadge.className = `card-status-badge ${registered ? "registered" : "missing"}`;
+    cardStatusNote.textContent = registered
+        ? "Your NFC card is linked to this student account. Tap it on the authorized campus reader."
+        : "No NFC card is registered on this account. Ask an administrator to register your card.";
 
-        const activeSession = applicableSessions.find(item => item.status === "active");
-        const stoppedSession = applicableSessions.find(item => item.status === "stopped");
-
-        if (activeSession) {
-            renderSession(activeSession);
-        } else if (stoppedSession) {
-            renderSession(stoppedSession);
-        } else {
-            setSessionState("empty");
-        }
-    },
-    error => {
-        console.error("Attendance session listener error:", error);
-        setSessionState("error");
+    if (!profile.studentId) {
+        setPageMessage("Your student ID is missing from your profile. Contact the administrator.", true);
+    } else {
+        setPageMessage("");
     }
-);
+}
 
-window.addEventListener("pagehide", unsubscribe, { once: true });
+function listenForAttendance(studentUid, profile) {
+    const attendanceQuery = query(
+        collection(db, "attendance"),
+        where("studentId", "==", studentUid)
+    );
 
-function isApplicableSession(sessionData) {
-    const applicableFields = ["classId", "className", "semester", "division"];
-    const result = applicableFields.every(field => {
-        if (sessionData[field] === undefined || sessionData[field] === null || sessionData[field] === "") {
-            return true;
+    unsubscribeAttendance = onSnapshot(
+        attendanceQuery,
+        snapshot => {
+            const records = snapshot.docs
+                .map(attendanceDocument => ({
+                    id: attendanceDocument.id,
+                    ...attendanceDocument.data()
+                }))
+                .sort((left, right) => getRecordTimestamp(right) - getRecordTimestamp(left));
+
+            renderLatestResult(records[0], profile);
+            renderRecentHistory(records.slice(0, 6));
+        },
+        error => {
+            console.error("Student attendance listener error:", error);
+            latestStatusBadge.textContent = "Unavailable";
+            latestStatusBadge.className = "result-badge error";
+            latestResult.innerHTML = emptyState(
+                "Unable to load attendance",
+                isPermissionError(error)
+                    ? "Firestore permission error. Your account cannot read attendance records."
+                    : "Attendance records could not be loaded. Please refresh and try again."
+            );
+            recentHistory.innerHTML = emptyState(
+                "History unavailable",
+                "Recent attendance could not be loaded from Firestore."
+            );
+            setPageMessage("Unable to load attendance records.", true);
         }
-        const profileValue = field === "classId" || field === "className"
-            ? (profile.className || profile.classId || profile.class || profile.department)
-            : profile[field];
-        return String(sessionData[field]).toLowerCase() === String(profileValue || "").toLowerCase();
-    });
-    console.log("Session matching result:", {
-        sessionId: sessionData.id,
-        applicable: result,
-        sessionClass: sessionData.className || sessionData.classId || sessionData.class || null,
-        studentClass: profile.className || profile.classId || profile.class || profile.department || null,
-        sessionSemester: sessionData.semester ?? null,
-        studentSemester: profile.semester ?? null,
-        sessionDivision: sessionData.division || null,
-        studentDivision: profile.division || null
-    });
-    return result;
+    );
 }
 
-function renderSession(sessionData) {
-    const isActive = sessionData.status === "active";
-    sessionBadge.textContent = isActive ? "Active Session" : "Session Ended";
-    sessionBadge.className = `session-badge ${isActive ? "active" : "ended"}`;
-    sessionSubject.textContent = sessionData.subjectName || sessionData.subject || "Attendance session";
-    sessionFaculty.textContent = sessionData.facultyName || "Faculty";
-    sessionClass.textContent = getClassDetails(sessionData);
-    sessionStarted.textContent = formatTimestamp(sessionData.startedAt);
-    sessionStatus.textContent = isActive
-        ? "Attendance is currently available."
-        : "Attendance is no longer being accepted for this session.";
-    readerTitle.textContent = isActive
-        ? "Tap your card at the authorized reader"
-        : "This session has ended";
-    readerDescription.textContent = isActive
-        ? "Keep your registered card ready and tap it on the authorized faculty reader."
-        : "Wait for faculty to start a new attendance session.";
-}
-
-function setSessionState(state) {
-    sessionBadge.className = `session-badge ${state}`;
-
-    if (state === "loading") {
-        sessionBadge.textContent = "Checking session";
-        sessionSubject.textContent = "Attendance session";
-        sessionStatus.textContent = "Loading active session...";
-        readerTitle.textContent = "Checking attendance availability";
+function renderLatestResult(record, profile) {
+    if (!record) {
+        latestStatusBadge.textContent = "Waiting";
+        latestStatusBadge.className = "result-badge idle";
+        latestResult.innerHTML = emptyState(
+            "No recent attendance yet",
+            "When faculty scans your card, your name, subject, and time will appear here."
+        );
         return;
     }
 
-    if (state === "error") {
-        sessionBadge.textContent = "Unavailable";
-        sessionSubject.textContent = "Attendance session";
-        sessionStatus.textContent = "Unable to load attendance sessions. Please try again later.";
-        readerTitle.textContent = "Attendance availability is unavailable";
-        readerDescription.textContent = "The session service could not be reached.";
+    const status = getAttendanceStatus(record);
+    latestStatusBadge.textContent = status;
+    latestStatusBadge.className = `result-badge ${status === "Present" ? "present" : "absent"}`;
+
+    latestResult.innerHTML = `
+        <dl class="result-details">
+            <div><dt>Student name</dt><dd>${escapeHTML(record.studentName || profile.name || "Student")}</dd></div>
+            <div><dt>Student ID</dt><dd>${escapeHTML(record.studentCode || profile.studentId || "Not assigned")}</dd></div>
+            <div><dt>Subject</dt><dd>${escapeHTML(record.subject || "Subject unavailable")}</dd></div>
+            <div><dt>Faculty</dt><dd>${escapeHTML(record.facultyName || "Faculty")}</dd></div>
+            <div><dt>Date</dt><dd>${escapeHTML(formatDate(record))}</dd></div>
+            <div><dt>Attendance time</dt><dd>${escapeHTML(record.time || formatTime(record))}</dd></div>
+            <div><dt>Status</dt><dd>${escapeHTML(status)}</dd></div>
+        </dl>
+    `;
+}
+
+function renderRecentHistory(records) {
+    if (!records.length) {
+        recentHistory.innerHTML = emptyState(
+            "No records to show",
+            "Your recent present and absent entries will list here."
+        );
         return;
     }
 
-    sessionBadge.textContent = "No active session";
-    sessionSubject.textContent = "Attendance unavailable";
-    sessionFaculty.textContent = "-";
-    sessionClass.textContent = "-";
-    sessionStarted.textContent = "-";
-    sessionStatus.textContent = "Wait for faculty to start a session.";
-    readerTitle.textContent = "Waiting for authorized reader";
-    readerDescription.textContent = "Attendance is currently unavailable. Faculty must start a session first.";
+    recentHistory.replaceChildren();
+
+    records.forEach(record => {
+        const status = getAttendanceStatus(record);
+        const item = document.createElement("article");
+        item.className = "recent-item";
+        item.innerHTML = `
+            <div>
+                <strong>${escapeHTML(record.subject || "Subject")}</strong>
+                <p>${escapeHTML(getSessionLabel(record))}</p>
+            </div>
+            <div class="recent-meta">
+                <span>${escapeHTML(formatDate(record))}</span>
+                <span>${escapeHTML(record.time || formatTime(record))}</span>
+                <span class="status-badge ${status === "Present" ? "status-present" : "status-absent"}">${escapeHTML(status)}</span>
+            </div>
+        `;
+        recentHistory.appendChild(item);
+    });
 }
 
-function getClassDetails(sessionData) {
-    const details = [];
-    if (sessionData.className || sessionData.classId) {
-        details.push(sessionData.className || sessionData.classId);
-    }
-    if (sessionData.semester !== undefined && sessionData.semester !== null) {
-        details.push(`Semester ${sessionData.semester}`);
-    }
-    if (sessionData.division) {
-        details.push(`Division ${sessionData.division}`);
-    }
-    return details.length ? details.join(" · ") : "All eligible classes";
+function getSessionLabel(record) {
+    const sessionId = record.sessionId ? String(record.sessionId).slice(0, 8) : "";
+    const faculty = record.facultyName || "Faculty";
+    return sessionId ? `${faculty} · Session ${sessionId}` : faculty;
 }
 
-function getTimestamp(value) {
+function getAttendanceStatus(record) {
+    const value = String(record.attendanceStatus || record.status || "present").toLowerCase();
+    return value === "absent" ? "Absent" : "Present";
+}
+
+function getRecordTimestamp(record) {
+    const value = record.scannedAt || record.createdAt || record.date;
     if (value?.toMillis) return value.toMillis();
     const timestamp = new Date(value || 0).getTime();
     return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
-function formatTimestamp(value) {
-    if (value?.toDate) return value.toDate().toLocaleString();
+function formatDate(record) {
+    if (record.date) return String(record.date);
+    const value = record.scannedAt || record.createdAt;
+    if (value?.toDate) {
+        return value.toDate().toLocaleDateString("en-IN");
+    }
     const date = new Date(value);
-    return Number.isNaN(date.getTime()) ? "Not available" : date.toLocaleString();
+    return Number.isNaN(date.getTime()) ? "Date unavailable" : date.toLocaleDateString("en-IN");
 }
+
+function formatTime(record) {
+    const value = record.scannedAt || record.createdAt;
+    if (value?.toDate) {
+        return value.toDate().toLocaleTimeString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true
+        });
+    }
+    return "Time unavailable";
+}
+
+function emptyState(title, message) {
+    return `<div class="result-empty"><strong>${escapeHTML(title)}</strong><p>${escapeHTML(message)}</p></div>`;
+}
+
+function setPageMessage(message, isError = false) {
+    pageMessage.textContent = message;
+    pageMessage.classList.toggle("error", Boolean(isError && message));
+}
+
+function isPermissionError(error) {
+    return error?.code === "permission-denied"
+        || /permission-denied|insufficient permissions/i.test(error?.message || "");
+}
+
+function escapeHTML(value) {
+    return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+}
+
+window.addEventListener("pagehide", () => {
+    unsubscribeAttendance?.();
+}, { once: true });

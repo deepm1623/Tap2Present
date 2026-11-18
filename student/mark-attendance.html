@@ -6,11 +6,15 @@
     <title>Mark Attendance | Tap2Present</title>
     <link rel="stylesheet" href="../css/common.css">
     <link rel="stylesheet" href="../css/student/student-portal.css">
+    <link rel="stylesheet" href="../css/student/mark-attendance.css">
 </head>
-<body class="dashboard-page student-portal">
+<body class="dashboard-page student-portal mark-attendance-page">
 <div class="dashboard-layout">
     <aside class="dashboard-sidebar">
-        <a href="student-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a>
+        <a href="student-dashboard.html" class="brand">
+            <img src="../assets/images/logo.png" alt="Tap2Present">
+            <span>Tap2<span>Present</span></span>
+        </a>
         <p class="sidebar-heading">STUDENT MENU</p>
         <nav class="sidebar-nav student-sidebar-nav">
             <a href="student-dashboard.html">▦ Dashboard</a>
@@ -24,48 +28,121 @@
             <a href="student-profile.html">◎ My Profile</a>
             <a href="settings.html">⚙ Settings</a>
         </nav>
-        <div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div>
+        <div class="sidebar-bottom">
+            <a href="#" class="logout-link" data-logout>↪ Logout</a>
+        </div>
     </aside>
-    <main class="dashboard-main">
-        <div class="page-title">
-            <p class="dashboard-date">STUDENT PORTAL</p>
-            <h1>Mark Attendance</h1>
-            <p class="dashboard-subtitle">Use your registered NFC/RFID card at the authorized campus reader.</p>
-        </div>
-        <div class="profile-grid">
-            <section class="overview-card">
-                <h3>NFC card status</h3>
-                <p class="muted">Student ID</p>
-                <strong data-student-id>Loading...</strong>
-                <p id="cardStatus" class="status-note">Checking card registration...</p>
-                <p id="lastScan" class="status-note"></p>
-            </section>
-            <section class="overview-card session-status-card">
-                <span id="sessionBadge" class="session-badge">Checking session</span>
-                <h3 id="sessionSubject">Attendance session</h3>
-                <p id="sessionStatus" class="status-note">Loading active session...</p>
-                <dl class="session-details">
-                    <div><dt>Faculty</dt><dd id="sessionFaculty">-</dd></div>
-                    <div><dt>Class</dt><dd id="sessionClass">-</dd></div>
-                    <div><dt>Started</dt><dd id="sessionStarted">-</dd></div>
-                </dl>
-                <p class="muted">Students cannot create attendance records from this page.</p>
-            </section>
-        </div>
-        <section class="action-card">
-            <div class="attendance-icon">◉</div>
-            <h2 id="readerTitle">Waiting for authorized reader</h2>
-            <p id="readerDescription">Attendance is recorded only when an authorized faculty reader verifies your card during an active session.</p>
-            <p id="attendance-message" class="auth-message">Web NFC is not a student-side attendance control.</p>
-            <ol class="status-note">
-                <li>Keep your registered card ready.</li>
-                <li>Tap it on the authorized campus reader.</li>
-                <li>Wait for the faculty confirmation.</li>
-            </ol>
+
+    <main class="dashboard-main mark-attendance-main">
+        <header class="mark-header">
+            <div>
+                <p class="dashboard-date">STUDENT PORTAL</p>
+                <h1>Mark Attendance</h1>
+                <p class="dashboard-subtitle">Your attendance, made simple and seamless.</p>
+            </div>
+            <div class="student-mini-profile">
+                <div class="profile-avatar" data-initial>S</div>
+                <div>
+                    <h4 data-name>Student</h4>
+                    <p data-student-id>Loading...</p>
+                </div>
+            </div>
+        </header>
+
+        <p id="pageMessage" class="page-message">Loading your attendance details...</p>
+
+        <section class="nfc-status-card" aria-labelledby="nfcStatusHeading">
+            <div class="nfc-status-intro">
+                <p class="mark-kicker">NFC CARD</p>
+                <h2 id="nfcStatusHeading">Card status</h2>
+                <p>Your registered campus card is the only way attendance is recorded.</p>
+            </div>
+            <div class="nfc-status-grid">
+                <article>
+                    <span>Registered Student ID</span>
+                    <strong id="statusStudentId">Loading...</strong>
+                </article>
+                <article>
+                    <span>Student Name</span>
+                    <strong id="statusStudentName">Loading...</strong>
+                </article>
+                <article>
+                    <span>Registration</span>
+                    <strong id="statusRegistration">Checking...</strong>
+                </article>
+                <article>
+                    <span>Card UID</span>
+                    <strong id="statusCardUid">Checking...</strong>
+                </article>
+            </div>
+            <div class="nfc-status-flag">
+                <span id="cardStatusBadge" class="card-status-badge">Checking</span>
+                <p id="cardStatusNote">Reading your Firestore profile...</p>
+            </div>
         </section>
+
+        <section class="nfc-stage" aria-labelledby="nfcStageHeading">
+            <div class="nfc-orb" aria-hidden="true">
+                <span class="nfc-ring"></span>
+                <span class="nfc-ring"></span>
+                <span class="nfc-ring"></span>
+                <div class="nfc-core">
+                    <svg viewBox="0 0 64 64" role="img" aria-label="NFC">
+                        <path d="M18 20c8 8 8 16 0 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M26 14c12 12 12 24 0 36" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                        <path d="M34 8c16 16 16 32 0 48" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>
+                        <circle cx="14" cy="32" r="3.2" fill="currentColor"/>
+                    </svg>
+                </div>
+            </div>
+            <h2 id="nfcStageHeading">Ready for Attendance.</h2>
+            <p class="nfc-stage-copy">Tap your registered NFC card on the authorized campus reader.</p>
+            <ul class="nfc-steps">
+                <li>Keep this page nearby so you can confirm the result.</li>
+                <li>Wait for faculty to start the class session on their Android scanner.</li>
+                <li>Hold your registered card to the campus reader until it is confirmed.</li>
+            </ul>
+            <p class="nfc-stage-note">Attendance is recorded only by the faculty NFC scanner. This page does not scan cards or mark you present.</p>
+        </section>
+
+        <div class="mark-split">
+            <section class="result-panel" aria-labelledby="resultHeading">
+                <div class="panel-heading">
+                    <div>
+                        <p class="mark-kicker">LATEST RESULT</p>
+                        <h2 id="resultHeading">Attendance result</h2>
+                    </div>
+                    <span id="latestStatusBadge" class="result-badge idle">Waiting</span>
+                </div>
+                <div id="latestResult" class="result-body">
+                    <div class="result-empty">
+                        <strong>No recent attendance yet</strong>
+                        <p>When faculty scans your card, your name, subject, and time will appear here.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="history-panel" aria-labelledby="recentHeading">
+                <div class="panel-heading">
+                    <div>
+                        <p class="mark-kicker">RECENT</p>
+                        <h2 id="recentHeading">Attendance history</h2>
+                    </div>
+                    <a class="view-all-link" href="attendance-history.html">View All</a>
+                </div>
+                <div id="recentHistory" class="recent-list">
+                    <div class="result-empty">
+                        <strong>No records to show</strong>
+                        <p>Your recent present and absent entries will list here.</p>
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <footer class="dashboard-footer">© 2026 Tap2Present. All rights reserved.</footer>
     </main>
 </div>
-<script type="module" src="../js/student/mark-attendance.js"></script>
 <script src="../js/Common/popups.js"></script>
+<script type="module" src="../js/student/mark-attendance.js"></script>
 </body>
 </html>
