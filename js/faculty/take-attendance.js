@@ -14,7 +14,7 @@ import {
     query,
     where,
     onSnapshot,
-    addDoc,
+    setDoc,
     updateDoc,
     runTransaction,
     serverTimestamp
@@ -61,6 +61,7 @@ let scannerActive = false;
 let processingCard = false;
 let nfcAbortController = null;
 let activeSession = null;
+let lastObservedSessionId = undefined;
 let unsubscribeActiveSession = null;
 let unsubscribeTodayScans = null;
 
@@ -134,6 +135,84 @@ function showResult(title, message, type = "info") {
     scanResult.append(icon, content);
 }
 
+function clearLatestScanResult() {
+    scanResult.className = "scan-result empty-result";
+    scanResult.innerHTML = "";
+
+    const icon = document.createElement("div");
+    icon.className = "result-icon";
+    icon.textContent = "NFC";
+
+    const content = document.createElement("div");
+    const heading = document.createElement("h3");
+    heading.textContent = "No card scanned yet";
+    const paragraph = document.createElement("p");
+    paragraph.textContent = "Student details will appear here.";
+
+    content.append(heading, paragraph);
+    scanResult.append(icon, content);
+}
+
+function getSessionId(session) {
+    if (!session) return null;
+    return session.sessionId || session.id || null;
+}
+
+function buildAttendanceDocumentId(sessionId, studentUid) {
+    return `${sessionId}_${studentUid}`;
+}
+
+function renderEmptyScanTable() {
+    scanTableBody.innerHTML =
+        '<tr><td colspan="5" class="empty-table">No attendance marked yet.</td></tr>';
+    scannedStudents.clear();
+    updateScanCount();
+}
+
+function createScanRow(record) {
+    const row = document.createElement("tr");
+
+    const idCell = document.createElement("td");
+    idCell.textContent = record.studentCode || record.studentId || "Unknown";
+
+    const nameCell = document.createElement("td");
+    nameCell.textContent = record.studentName || record.name || "Student";
+
+    const subjectCell = document.createElement("td");
+    subjectCell.textContent = record.subject || activeSession?.subjectName || activeSession?.subject || "-";
+
+    const timeCell = document.createElement("td");
+    timeCell.textContent = record.time || getLocalTime();
+
+    const statusCell = document.createElement("td");
+    statusCell.textContent = "Present";
+    statusCell.className = "present-status";
+
+    row.append(idCell, nameCell, subjectCell, timeCell, statusCell);
+    return row;
+}
+
+function setSessionFieldsLocked(locked) {
+    subjectInput.disabled = locked;
+    subjectCodeInput.disabled = locked;
+    classInput.disabled = locked;
+    semesterInput.disabled = locked;
+    divisionInput.disabled = locked;
+}
+
+function fillSessionFields(session) {
+    if (!session) return;
+
+    subjectInput.value = session.subjectName || session.subject || "";
+    subjectCodeInput.value = session.subjectCode || "";
+    classInput.value = session.className || session.classId || session.class || "";
+    semesterInput.value = session.semester ?? "";
+    divisionInput.value = session.division || "";
+    if (session.date) {
+        dateDisplay.value = session.date;
+    }
+}
+
 function showToast(message, type = "info") {
     if (typeof window.showToast === "function") {
         window.showToast(message, type);
@@ -146,45 +225,45 @@ function updateScanCount() {
     scanCount.textContent = `${scannedStudents.size} scanned`;
 }
 
-function loadTodaysScans() {
-    const date = getLocalDate();
-    const todaysQuery = query(
+function listenToSessionAttendance(sessionId) {
+    unsubscribeTodayScans?.();
+    unsubscribeTodayScans = null;
+    renderEmptyScanTable();
+
+    if (!sessionId) {
+        return;
+    }
+
+    const sessionAttendanceQuery = query(
         collection(db, "attendance"),
-        where("date", "==", date)
+        where("sessionId", "==", sessionId)
     );
 
     unsubscribeTodayScans = onSnapshot(
-        todaysQuery,
+        sessionAttendanceQuery,
         snapshot => {
-            const records = snapshot.docs
-                .map(attendanceDocument => attendanceDocument.data())
-                .filter(record => activeSession
-                    ? record.sessionId === activeSession.id
-                    : true);
+            const records = snapshot.docs.map(attendanceDocument => ({
+                id: attendanceDocument.id,
+                ...attendanceDocument.data()
+            }));
 
             scanTableBody.innerHTML = "";
             scannedStudents.clear();
 
             if (!records.length) {
-                scanTableBody.innerHTML =
-                    '<tr><td colspan="4" class="empty-table">No attendance marked yet.</td></tr>';
-                updateScanCount();
+                renderEmptyScanTable();
                 return;
             }
 
             records
                 .sort((left, right) => getTimestamp(right.scannedAt) - getTimestamp(left.scannedAt))
                 .forEach(record => {
-                    scannedStudents.add(record.studentId);
-                    addStudentToTable(
-                        { name: record.studentName || "Student" },
-                        record.studentCode || record.studentId,
-                        record.time
-                    );
+                    if (record.studentId) scannedStudents.add(record.studentId);
+                    scanTableBody.appendChild(createScanRow(record));
                 });
             updateScanCount();
         },
-        error => console.error("Today's attendance listener error:", error)
+        error => console.error("Session attendance listener error:", error)
     );
 }
 
@@ -237,7 +316,6 @@ async function initializeFaculty() {
         facultyInitial.textContent =
             currentFaculty.name.charAt(0).toUpperCase();
 
-        loadTodaysScans();
         listenForActiveSession();
 
     } catch (error) {
@@ -273,38 +351,41 @@ function listenForActiveSession() {
                 }))
                 .find(sessionData => sessionData.status === "active");
 
-            activeSession = active || null;
-            endSessionButton.disabled = !activeSession;
-            startSessionButton.disabled = Boolean(activeSession);
-
-            if (activeSession) {
-                sessionMessage.textContent =
-                    `Active session: ${activeSession.subjectName || activeSession.subject} (${activeSession.id})`;
-                subjectInput.value = activeSession.subjectName || activeSession.subject || subjectInput.value;
-                subjectCodeInput.value = activeSession.subjectCode || "";
-                classInput.value = activeSession.className || activeSession.classId || "";
-                semesterInput.value = activeSession.semester ?? "";
-                divisionInput.value = activeSession.division || "";
-
-                subjectInput.disabled = true;
-                subjectCodeInput.disabled = true;
-                classInput.disabled = true;
-                semesterInput.disabled = true;
-                divisionInput.disabled = true;
-            } else {
-                sessionMessage.textContent = "Start a session before using the NFC scanner.";
-                subjectInput.disabled = false;
-                subjectCodeInput.disabled = false;
-                classInput.disabled = false;
-                semesterInput.disabled = false;
-                divisionInput.disabled = false;
-            }
+            applyActiveSession(active || null);
         },
         error => {
             console.error("Active session listener error:", error);
             sessionMessage.textContent = "Unable to load the active session.";
         }
     );
+}
+
+function applyActiveSession(session) {
+    const sessionId = getSessionId(session);
+    const sessionChanged = sessionId !== lastObservedSessionId;
+
+    activeSession = session;
+    endSessionButton.disabled = !activeSession;
+    startSessionButton.disabled = Boolean(activeSession);
+    setSessionFieldsLocked(Boolean(activeSession));
+
+    if (activeSession) {
+        fillSessionFields(activeSession);
+        sessionMessage.textContent =
+            `Active session: ${activeSession.subjectName || activeSession.subject} (${sessionId})`;
+    } else {
+        sessionMessage.textContent = "Start a session before using the NFC scanner.";
+        dateDisplay.value = getLocalDate();
+    }
+
+    if (sessionChanged) {
+        scannedStudents.clear();
+        if (sessionId) {
+            clearLatestScanResult();
+        }
+        listenToSessionAttendance(sessionId);
+        lastObservedSessionId = sessionId;
+    }
 }
 
 async function startAttendanceSession() {
@@ -329,39 +410,45 @@ async function startAttendanceSession() {
     startSessionButton.disabled = true;
 
     try {
-        const duplicateQuery = query(
-            collection(db, "sessions"),
-            where("status", "==", "active")
-        );
-        const snapshot = await getDocs(duplicateQuery);
-        const duplicate = snapshot.docs
-            .map(sessionDocument => ({
-                id: sessionDocument.id,
-                ...sessionDocument.data()
-            }))
-            .find(sessionData =>
-                sessionData.facultyId === currentFaculty.uid &&
-                String(sessionData.subjectName || sessionData.subject || "").toLowerCase() === subject.toLowerCase() &&
-                String(sessionData.className || sessionData.classId || "").toLowerCase() === className.toLowerCase() &&
-                String(sessionData.semester || "") === String(semester) &&
-                String(sessionData.division || "").toLowerCase() === division.toLowerCase()
-            );
-
-        if (duplicate) {
-            activeSession = duplicate;
-            sessionMessage.textContent =
-                `An active session already exists: ${duplicate.id}`;
-            showToast("This session is already active.", "warning");
+        if (getSessionId(activeSession)) {
+            startSessionButton.disabled = true;
             endSessionButton.disabled = false;
+            showToast("End the current session before starting another.", "warning");
+            sessionMessage.textContent = "End the current session before starting another.";
             return;
         }
 
+        const activeQuery = query(
+            collection(db, "sessions"),
+            where("facultyId", "==", currentFaculty.uid),
+            where("status", "==", "active")
+        );
+        const snapshot = await getDocs(activeQuery);
+
+        if (!snapshot.empty) {
+            const existing = {
+                id: snapshot.docs[0].id,
+                ...snapshot.docs[0].data()
+            };
+            applyActiveSession(existing);
+            showToast("End the current session before starting another.", "warning");
+            sessionMessage.textContent =
+                `An active session already exists: ${getSessionId(existing)}. End it before starting another.`;
+            return;
+        }
+
+        // Always create a brand-new session document. Never reuse or update
+        // an older sessionId when the subject or class changes.
+        const sessionReference = doc(collection(db, "sessions"));
+        const sessionId = sessionReference.id;
+        const sessionDate = getLocalDate();
         const now = serverTimestamp();
-        const sessionReference = await addDoc(collection(db, "sessions"), {
-            sessionId: "",
+
+        await setDoc(sessionReference, {
+            sessionId,
             facultyId: currentFaculty.uid,
             facultyName: currentFaculty.name,
-            subject: subject,
+            subject,
             subjectName: subject,
             subjectCode,
             class: className,
@@ -369,7 +456,7 @@ async function startAttendanceSession() {
             classId: className,
             semester,
             division,
-            date: getLocalDate(),
+            date: sessionDate,
             startTime: now,
             startedAt: now,
             status: "active",
@@ -377,15 +464,26 @@ async function startAttendanceSession() {
             endedAt: null
         });
 
-        await updateDoc(sessionReference, { sessionId: sessionReference.id });
-        activeSession = { id: sessionReference.id, sessionId: sessionReference.id };
+        const startedSession = {
+            id: sessionId,
+            sessionId,
+            facultyId: currentFaculty.uid,
+            facultyName: currentFaculty.name,
+            subject,
+            subjectName: subject,
+            subjectCode,
+            class: className,
+            className,
+            classId: className,
+            semester,
+            division,
+            date: sessionDate,
+            status: "active"
+        };
 
-        sessionMessage.textContent =
-            `Active session started: ${subject}`;
-        endSessionButton.disabled = false;
-        startSessionButton.disabled = true;
+        applyActiveSession(startedSession);
         showToast("Attendance session started.", "success");
-        console.log("Active attendance session created:", sessionReference.id);
+        console.log("Active attendance session created:", sessionId);
     } catch (error) {
         console.error("Start attendance session failed:", error);
         startSessionButton.disabled = false;
@@ -406,15 +504,14 @@ async function endAttendanceSession() {
     endSessionButton.disabled = true;
 
     try {
-        const endedSessionId = activeSession.id;
+        const endedSessionId = getSessionId(activeSession);
         await updateDoc(doc(db, "sessions", endedSessionId), {
             status: "completed",
             endTime: serverTimestamp(),
             endedAt: serverTimestamp()
         });
 
-        activeSession = null;
-        startSessionButton.disabled = false;
+        applyActiveSession(null);
         sessionMessage.textContent = "Session ended. You can start a new session.";
         showToast("Attendance session ended.", "success");
         console.log("Attendance session ended:", endedSessionId);
@@ -517,19 +614,13 @@ async function startScanner() {
         return;
     }
 
-    if (!activeSession) {
-        showToast("Start an attendance session before scanning.", "warning");
+    if (!getSessionId(activeSession)) {
+        showToast("Please start an attendance session first.", "warning");
         showResult(
-            "No active session",
-            "Start an attendance session before scanning NFC cards.",
+            "Please start an attendance session first.",
+            "Start a session, then scan the student's NFC card.",
             "error"
         );
-        return;
-    }
-
-    if (!subjectInput.value.trim()) {
-        showToast("Please enter a subject first.", "warning");
-        subjectInput.focus();
         return;
     }
 
@@ -651,10 +742,10 @@ async function handleNFCReading(event) {
     console.log("Raw NFC data:", event.message);
 
     try {
-        if (!activeSession) {
+        if (!getSessionId(activeSession)) {
             showResult(
-                "No active attendance session",
-                "Start an attendance session before scanning student cards.",
+                "Please start an attendance session first.",
+                "Start a session, then scan the student's NFC card.",
                 "error"
             );
             return;
@@ -703,6 +794,24 @@ async function handleNFCReading(event) {
             code: error.code || "unknown",
             message: error.message
         });
+
+        if (error.code === "STUDENT_NOT_FOUND") {
+            showResult(
+                "Student not found.",
+                "No matching student was found in users for this NFC card.",
+                "error"
+            );
+            return;
+        }
+
+        if (error.code === "NO_ACTIVE_SESSION") {
+            showResult(
+                "Please start an attendance session first.",
+                "Start a session, then scan the student's NFC card.",
+                "error"
+            );
+            return;
+        }
 
         showResult(
             "Scan failed",
@@ -889,7 +998,9 @@ async function findStudent(studentCode) {
         console.log("Number of matching student documents:", snapshot.size);
 
         if (snapshot.empty) {
-            throw new Error(`Student ID ${normalizedCode} was not found in users.`);
+            const notFoundError = new Error("Student not found.");
+            notFoundError.code = "STUDENT_NOT_FOUND";
+            throw notFoundError;
         }
 
         const studentDocument = snapshot.docs.find((documentSnapshot) => {
@@ -961,18 +1072,22 @@ async function findStudentByRegisteredHardwareUid(serialNumber) {
 // ---------------------------------------------
 
 async function markStudentAttendance(studentCode, knownStudent) {
-    const subject = subjectInput.value.trim();
-    const date = getLocalDate();
+    const sessionId = getSessionId(activeSession);
+
+    if (!sessionId) {
+        const sessionError = new Error("Please start an attendance session first.");
+        sessionError.code = "NO_ACTIVE_SESSION";
+        throw sessionError;
+    }
+
+    const subject = activeSession.subjectName || activeSession.subject || subjectInput.value.trim();
+    const subjectCode = activeSession.subjectCode || subjectCodeInput.value.trim();
+    const date = activeSession.date || getLocalDate();
 
     if (!subject) {
         throw new Error("Please enter a subject.");
     }
 
-    if (!activeSession) {
-        throw new Error("No active attendance session.");
-    }
-
-    const sessionId = activeSession.id;
     console.log("Active session ID:", sessionId);
 
     showResult(
@@ -990,23 +1105,24 @@ async function markStudentAttendance(studentCode, knownStudent) {
         throw new Error(`Student ${displayStudentId} is inactive.`);
     }
 
-    if (scannedStudents.has(student.uid) || scannedStudents.has(displayStudentId)) {
+    const attendanceId = buildAttendanceDocumentId(sessionId, student.uid);
+    const attendanceRef = doc(db, "attendance", attendanceId);
+    const existingAttendance = await getDoc(attendanceRef);
+
+    if (existingAttendance.exists()) {
         showResult(
-            "Duplicate attendance",
-            `${student.name || displayStudentId} is already marked present in this session.`,
+            "Duplicate attendance – Already marked present.",
+            `${student.name || displayStudentId} is already present in this session. The same card can still be used in a later session.`,
             "error"
         );
         return;
     }
 
-    const attendanceId = `${sessionId}_${student.uid}`;
-    const attendanceRef = doc(db, "attendance", attendanceId);
-
     try {
         await runTransaction(db, async (transaction) => {
-            const existingAttendance = await transaction.get(attendanceRef);
+            const attendanceSnapshot = await transaction.get(attendanceRef);
 
-            if (existingAttendance.exists()) {
+            if (attendanceSnapshot.exists()) {
                 throw new Error("DUPLICATE_ATTENDANCE");
             }
 
@@ -1017,10 +1133,13 @@ async function markStudentAttendance(studentCode, knownStudent) {
                 facultyId: currentFaculty.uid,
                 facultyName: currentFaculty.name,
                 scannedBy: currentFaculty.uid,
-                subject: subject,
-                subjectCode: subjectCodeInput.value.trim(),
-                sessionId: sessionId,
-                date: date,
+                subject,
+                subjectCode,
+                className: activeSession.className || activeSession.classId || classInput.value.trim(),
+                semester: activeSession.semester ?? Number(semesterInput.value),
+                division: activeSession.division || divisionInput.value.trim(),
+                sessionId,
+                date,
                 time: getLocalTime(),
                 status: "present",
                 attendanceStatus: "present",
@@ -1031,8 +1150,8 @@ async function markStudentAttendance(studentCode, knownStudent) {
     } catch (error) {
         if (error.message === "DUPLICATE_ATTENDANCE") {
             showResult(
-                "Duplicate attendance",
-                `${student.name || displayStudentId} is already marked present in this session.`,
+                "Duplicate attendance – Already marked present.",
+                `${student.name || displayStudentId} is already present in this session. The same card can still be used in a later session.`,
                 "error"
             );
             return;
@@ -1046,13 +1165,10 @@ async function markStudentAttendance(studentCode, knownStudent) {
     }
 
     scannedStudents.add(student.uid);
-    scannedStudents.add(displayStudentId);
-
     updateScanCount();
-    addStudentToTable(student, displayStudentId);
 
     showResult(
-        "Attendance marked successfully",
+        "Attendance marked successfully.",
         `${student.name || "Student"} (${displayStudentId}) is marked PRESENT for ${subject}.`,
         "success"
     );
@@ -1065,6 +1181,7 @@ async function markStudentAttendance(studentCode, knownStudent) {
         studentId: displayStudentId,
         uid: student.uid,
         sessionId,
+        attendanceId,
         subject,
         date
     });
@@ -1073,38 +1190,8 @@ async function markStudentAttendance(studentCode, knownStudent) {
 // ---------------------------------------------
 // ADD STUDENT TO TODAY'S TABLE
 // ---------------------------------------------
-
-function addStudentToTable(student, studentCode, scannedTime) {
-    const emptyRow = scanTableBody.querySelector(".empty-table");
-
-    if (emptyRow) {
-        scanTableBody.innerHTML = "";
-    }
-
-    const row = document.createElement("tr");
-
-    const idCell = document.createElement("td");
-    idCell.textContent = studentCode;
-
-    const nameCell = document.createElement("td");
-    nameCell.textContent = student.name || "Student";
-
-    const timeCell = document.createElement("td");
-    timeCell.textContent = scannedTime || getLocalTime();
-
-    const statusCell = document.createElement("td");
-    statusCell.textContent = "Present";
-    statusCell.className = "present-status";
-
-    row.append(
-        idCell,
-        nameCell,
-        timeCell,
-        statusCell
-    );
-
-    scanTableBody.prepend(row);
-}
+// Session attendance rows are rendered from the Firestore listener so
+// Today's Scans always matches the active sessionId.
 
 // ---------------------------------------------
 // LOGOUT
