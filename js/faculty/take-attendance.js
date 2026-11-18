@@ -13,6 +13,9 @@ import {
     getDocs,
     query,
     where,
+    onSnapshot,
+    addDoc,
+    updateDoc,
     runTransaction,
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
@@ -30,7 +33,15 @@ const scannerDescription = document.getElementById("scannerDescription");
 const nfcAnimation = document.getElementById("nfcAnimation");
 
 const subjectInput = document.getElementById("subjectInput");
+const subjectCodeInput = document.getElementById("subjectCodeInput");
+const classInput = document.getElementById("classInput");
+const semesterInput = document.getElementById("semesterInput");
+const divisionInput = document.getElementById("divisionInput");
 const dateDisplay = document.getElementById("dateDisplay");
+
+const startSessionButton = document.getElementById("startSessionButton");
+const endSessionButton = document.getElementById("endSessionButton");
+const sessionMessage = document.getElementById("sessionMessage");
 
 const scanResult = document.getElementById("scanResult");
 const scanTableBody = document.getElementById("scanTableBody");
@@ -49,6 +60,9 @@ let nfcReader = null;
 let scannerActive = false;
 let processingCard = false;
 let nfcAbortController = null;
+let activeSession = null;
+let unsubscribeActiveSession = null;
+let unsubscribeTodayScans = null;
 
 const scannedStudents = new Set();
 
@@ -72,6 +86,12 @@ function getLocalTime() {
         minute: "2-digit",
         hour12: true
     });
+}
+
+function getTimestamp(value) {
+    if (value?.toMillis) return value.toMillis();
+    const timestamp = new Date(value || 0).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
 }
 
 dateDisplay.value = getLocalDate();
@@ -126,39 +146,46 @@ function updateScanCount() {
     scanCount.textContent = `${scannedStudents.size} scanned`;
 }
 
-async function loadTodaysScans() {
+function loadTodaysScans() {
     const date = getLocalDate();
+    const todaysQuery = query(
+        collection(db, "attendance"),
+        where("date", "==", date)
+    );
 
-    try {
-        const todaysQuery = query(
-            collection(db, "attendance"),
-            where("date", "==", date)
-        );
-        const snapshot = await getDocs(todaysQuery);
+    unsubscribeTodayScans = onSnapshot(
+        todaysQuery,
+        snapshot => {
+            const records = snapshot.docs
+                .map(attendanceDocument => attendanceDocument.data())
+                .filter(record => activeSession
+                    ? record.sessionId === activeSession.id
+                    : true);
 
-        if (snapshot.empty) return;
+            scanTableBody.innerHTML = "";
+            scannedStudents.clear();
 
-        const emptyRow = scanTableBody.querySelector(".empty-table");
-        if (emptyRow) scanTableBody.innerHTML = "";
+            if (!records.length) {
+                scanTableBody.innerHTML =
+                    '<tr><td colspan="4" class="empty-table">No attendance marked yet.</td></tr>';
+                updateScanCount();
+                return;
+            }
 
-        snapshot.forEach((attendanceDocument) => {
-            const record = attendanceDocument.data();
-            if (!record.studentId) return;
-
-            scannedStudents.add(record.studentId);
-            addStudentToTable(
-                {
-                    name: record.studentName || "Student"
-                },
-                record.studentCode || record.studentId,
-                record.time
-            );
-        });
-
-        updateScanCount();
-    } catch (error) {
-        console.error("Unable to load today's attendance:", error);
-    }
+            records
+                .sort((left, right) => getTimestamp(right.scannedAt) - getTimestamp(left.scannedAt))
+                .forEach(record => {
+                    scannedStudents.add(record.studentId);
+                    addStudentToTable(
+                        { name: record.studentName || "Student" },
+                        record.studentCode || record.studentId,
+                        record.time
+                    );
+                });
+            updateScanCount();
+        },
+        error => console.error("Today's attendance listener error:", error)
+    );
 }
 
 // ---------------------------------------------
@@ -210,7 +237,8 @@ async function initializeFaculty() {
         facultyInitial.textContent =
             currentFaculty.name.charAt(0).toUpperCase();
 
-        await loadTodaysScans();
+        loadTodaysScans();
+        listenForActiveSession();
 
     } catch (error) {
         console.error("Faculty initialization error:", error);
@@ -220,6 +248,182 @@ async function initializeFaculty() {
             error.message || "Please log in again.",
             "error"
         );
+    }
+}
+
+// ---------------------------------------------
+// ATTENDANCE SESSION MANAGEMENT
+// ---------------------------------------------
+
+function listenForActiveSession() {
+    if (!currentFaculty) return;
+
+    const sessionsQuery = query(
+        collection(db, "sessions"),
+        where("facultyId", "==", currentFaculty.uid)
+    );
+
+    unsubscribeActiveSession = onSnapshot(
+        sessionsQuery,
+        snapshot => {
+            const active = snapshot.docs
+                .map(sessionDocument => ({
+                    id: sessionDocument.id,
+                    ...sessionDocument.data()
+                }))
+                .find(sessionData => sessionData.status === "active");
+
+            activeSession = active || null;
+            endSessionButton.disabled = !activeSession;
+            startSessionButton.disabled = Boolean(activeSession);
+
+            if (activeSession) {
+                sessionMessage.textContent =
+                    `Active session: ${activeSession.subjectName || activeSession.subject} (${activeSession.id})`;
+                subjectInput.value = activeSession.subjectName || activeSession.subject || subjectInput.value;
+                subjectCodeInput.value = activeSession.subjectCode || "";
+                classInput.value = activeSession.className || activeSession.classId || "";
+                semesterInput.value = activeSession.semester ?? "";
+                divisionInput.value = activeSession.division || "";
+
+                subjectInput.disabled = true;
+                subjectCodeInput.disabled = true;
+                classInput.disabled = true;
+                semesterInput.disabled = true;
+                divisionInput.disabled = true;
+            } else {
+                sessionMessage.textContent = "Start a session before using the NFC scanner.";
+                subjectInput.disabled = false;
+                subjectCodeInput.disabled = false;
+                classInput.disabled = false;
+                semesterInput.disabled = false;
+                divisionInput.disabled = false;
+            }
+        },
+        error => {
+            console.error("Active session listener error:", error);
+            sessionMessage.textContent = "Unable to load the active session.";
+        }
+    );
+}
+
+async function startAttendanceSession() {
+    console.log("Button click detected: Start Session");
+
+    if (!currentFaculty) {
+        showToast("Faculty account is not ready.", "error");
+        return;
+    }
+
+    const subject = subjectInput.value.trim();
+    const subjectCode = subjectCodeInput.value.trim();
+    const className = classInput.value.trim();
+    const semester = Number(semesterInput.value);
+    const division = divisionInput.value.trim();
+
+    if (!subject || !className || !semester || !division) {
+        showToast("Enter subject, class, semester and division.", "warning");
+        return;
+    }
+
+    startSessionButton.disabled = true;
+
+    try {
+        const duplicateQuery = query(
+            collection(db, "sessions"),
+            where("status", "==", "active")
+        );
+        const snapshot = await getDocs(duplicateQuery);
+        const duplicate = snapshot.docs
+            .map(sessionDocument => ({
+                id: sessionDocument.id,
+                ...sessionDocument.data()
+            }))
+            .find(sessionData =>
+                sessionData.facultyId === currentFaculty.uid &&
+                String(sessionData.subjectName || sessionData.subject || "").toLowerCase() === subject.toLowerCase() &&
+                String(sessionData.className || sessionData.classId || "").toLowerCase() === className.toLowerCase() &&
+                String(sessionData.semester || "") === String(semester) &&
+                String(sessionData.division || "").toLowerCase() === division.toLowerCase()
+            );
+
+        if (duplicate) {
+            activeSession = duplicate;
+            sessionMessage.textContent =
+                `An active session already exists: ${duplicate.id}`;
+            showToast("This session is already active.", "warning");
+            endSessionButton.disabled = false;
+            return;
+        }
+
+        const now = serverTimestamp();
+        const sessionReference = await addDoc(collection(db, "sessions"), {
+            sessionId: "",
+            facultyId: currentFaculty.uid,
+            facultyName: currentFaculty.name,
+            subject: subject,
+            subjectName: subject,
+            subjectCode,
+            class: className,
+            className,
+            classId: className,
+            semester,
+            division,
+            date: getLocalDate(),
+            startTime: now,
+            startedAt: now,
+            status: "active",
+            endTime: null,
+            endedAt: null
+        });
+
+        await updateDoc(sessionReference, { sessionId: sessionReference.id });
+        activeSession = { id: sessionReference.id, sessionId: sessionReference.id };
+
+        sessionMessage.textContent =
+            `Active session started: ${subject}`;
+        endSessionButton.disabled = false;
+        startSessionButton.disabled = true;
+        showToast("Attendance session started.", "success");
+        console.log("Active attendance session created:", sessionReference.id);
+    } catch (error) {
+        console.error("Start attendance session failed:", error);
+        startSessionButton.disabled = false;
+        sessionMessage.textContent =
+            error.message || "Unable to start the attendance session.";
+        showToast("Unable to start the attendance session.", "error");
+    }
+}
+
+async function endAttendanceSession() {
+    console.log("Button click detected: End Session");
+
+    if (!activeSession) {
+        showToast("There is no active session.", "warning");
+        return;
+    }
+
+    endSessionButton.disabled = true;
+
+    try {
+        const endedSessionId = activeSession.id;
+        await updateDoc(doc(db, "sessions", endedSessionId), {
+            status: "completed",
+            endTime: serverTimestamp(),
+            endedAt: serverTimestamp()
+        });
+
+        activeSession = null;
+        startSessionButton.disabled = false;
+        sessionMessage.textContent = "Session ended. You can start a new session.";
+        showToast("Attendance session ended.", "success");
+        console.log("Attendance session ended:", endedSessionId);
+
+        if (scannerActive) await stopScanner();
+    } catch (error) {
+        console.error("End attendance session failed:", error);
+        endSessionButton.disabled = false;
+        showToast("Unable to end the attendance session.", "error");
     }
 }
 
@@ -310,6 +514,16 @@ async function startScanner() {
 
     if (!currentFaculty) {
         showToast("Faculty account is not ready.", "error");
+        return;
+    }
+
+    if (!activeSession) {
+        showToast("Start an attendance session before scanning.", "warning");
+        showResult(
+            "No active session",
+            "Start an attendance session before scanning NFC cards.",
+            "error"
+        );
         return;
     }
 
@@ -576,6 +790,10 @@ async function markStudentAttendance(studentCode) {
         throw new Error("Please enter a subject.");
     }
 
+    if (!activeSession) {
+        throw new Error("No valid active attendance session.");
+    }
+
     showResult(
         "Verifying student",
         `Checking student ID ${studentCode}...`,
@@ -609,7 +827,7 @@ async function markStudentAttendance(studentCode) {
         .replace(/[^a-z0-9]+/g, "_")
         .replace(/^_+|_+$/g, "");
 
-    const attendanceId = `${student.uid}_${date}_${subjectKey}`;
+    const attendanceId = `${activeSession.id}_${student.uid}`;
     const attendanceRef = doc(db, "attendance", attendanceId);
 
     await runTransaction(db, async (transaction) => {
@@ -626,10 +844,15 @@ async function markStudentAttendance(studentCode) {
             studentCode: studentCode,
             studentName: student.name || "Student",
             subject: subject,
+            subjectCode: subjectCodeInput.value.trim(),
             date: date,
             time: getLocalTime(),
             status: "present",
+            attendanceStatus: "present",
+            sessionId: activeSession.id,
             scannedBy: currentFaculty.uid,
+            facultyId: currentFaculty.uid,
+            scannedAt: serverTimestamp(),
             createdAt: serverTimestamp()
         });
     });
@@ -723,6 +946,13 @@ logoutButton?.addEventListener("click", async () => {
 
 startButton.addEventListener("click", startScanner);
 stopButton.addEventListener("click", stopScanner);
+startSessionButton?.addEventListener("click", startAttendanceSession);
+endSessionButton?.addEventListener("click", endAttendanceSession);
+
+window.addEventListener("pagehide", () => {
+    unsubscribeActiveSession?.();
+    unsubscribeTodayScans?.();
+});
 
 // ---------------------------------------------
 // INITIALIZE PAGE

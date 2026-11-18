@@ -76,11 +76,44 @@
                 </div>
 
                 <div class="field">
+                    <label for="subjectCodeInput">Subject Code</label>
+                    <input type="text" id="subjectCodeInput" placeholder="Example: CS601">
+                </div>
+
+                <div class="field">
+                    <label for="classInput">Class</label>
+                    <input type="text" id="classInput" placeholder="Example: TY B.Tech CSE">
+                </div>
+
+                <div class="field">
+                    <label for="semesterInput">Semester</label>
+                    <input type="number" id="semesterInput" min="1" max="8" placeholder="Example: 6">
+                </div>
+
+                <div class="field">
+                    <label for="divisionInput">Division</label>
+                    <input type="text" id="divisionInput" placeholder="Example: A">
+                </div>
+
+                <div class="field">
                     <label for="dateDisplay">Date</label>
                     <input type="text" id="dateDisplay" readonly>
                 </div>
 
             </div>
+
+            <div class="reader-actions">
+                <button id="startSessionButton" class="start-button" type="button">
+                    Start Session
+                </button>
+                <button id="endSessionButton" class="stop-button" type="button" disabled>
+                    End Session
+                </button>
+            </div>
+
+            <p id="sessionMessage" class="reader-note" aria-live="polite">
+                Start a session before using the NFC scanner.
+            </p>
 
         </section>
 

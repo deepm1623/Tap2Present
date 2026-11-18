@@ -1,1 +1,22 @@
 .portal-main { max-width: 1100px; }
+
+#activeSessionCard {
+    display: grid;
+    gap: 10px;
+}
+
+#endDashboardSessionButton {
+    width: fit-content;
+    padding: 12px 18px;
+    border: 0;
+    border-radius: 9px;
+    color: #17212a;
+    background: #e58a55;
+    cursor: pointer;
+    font-weight: 700;
+}
+
+#endDashboardSessionButton:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}

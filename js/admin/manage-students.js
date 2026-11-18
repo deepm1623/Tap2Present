@@ -77,6 +77,7 @@ const studentEmail = document.getElementById("studentEmail");
 const studentPassword = document.getElementById("studentPassword");
 const studentDepartment = document.getElementById("studentDepartment");
 const studentSemester = document.getElementById("studentSemester");
+const studentDivision = document.getElementById("studentDivision");
 
 const formMessage = document.getElementById("formMessage");
 const saveStudentButton = document.getElementById("saveStudentButton");
@@ -94,6 +95,7 @@ const editStudentName = document.getElementById("editStudentName");
 const editStudentEmail = document.getElementById("editStudentEmail");
 const editStudentDepartment = document.getElementById("editStudentDepartment");
 const editStudentSemester = document.getElementById("editStudentSemester");
+const editStudentDivision = document.getElementById("editStudentDivision");
 
 const editStudentMessage = document.getElementById("editStudentMessage");
 const updateStudentButton = document.getElementById("updateStudentButton");
@@ -490,6 +492,7 @@ async function createStudentAccount(studentData) {
         status: "active",
         studentId: generatedId,
         department: studentData.department.trim(),
+        division: studentData.division,
         semester: normalizeSemester(studentData.semester),
         createdBy: currentAdmin.uid,
         createdAt: serverTimestamp()
@@ -556,7 +559,8 @@ studentForm.addEventListener("submit", async event => {
     email: normalizeEmail(studentEmail.value),
     password: studentPassword.value,
     department: studentDepartment.value.trim(),
-    semester: studentSemester.value
+    semester: studentSemester.value,
+    division: studentDivision?.value.trim() || ""
   };
 
   if (
@@ -755,6 +759,7 @@ function openEditStudent(student) {
   editStudentEmail.value = student.email || "";
   editStudentDepartment.value = student.department || "";
   editStudentSemester.value = student.semester || "";
+  editStudentDivision.value = student.division || "";
 
   showMessage(editStudentMessage, "");
   openModal(editStudentModal);
@@ -778,7 +783,8 @@ editStudentForm.addEventListener("submit", async event => {
   const updatedInfo = {
     name: editStudentName.value.trim(),
     department: editStudentDepartment.value.trim(),
-    semester: Number(editStudentSemester.value)
+    semester: Number(editStudentSemester.value),
+    division: editStudentDivision?.value.trim() || ""
   };
 
   if (

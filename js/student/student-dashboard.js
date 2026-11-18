@@ -7,9 +7,9 @@ import {
     collection,
     doc,
     getDoc,
-    getDocs,
     query,
-    where
+    where,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const studentName = document.getElementById("studentName");
@@ -25,9 +25,13 @@ const dashboardMessage = document.getElementById("dashboardMessage");
 const dashboardRetry = document.getElementById("dashboardRetry");
 const attendanceAlert = document.getElementById("attendanceAlert");
 const logoutButton = document.getElementById("logoutButton");
+const attendanceSessions = document.getElementById("attendanceSessions");
+const activeSessionsCount = document.getElementById("activeSessionsCount");
 
 let activeUser = null;
 let loading = false;
+let unsubscribeSessions = null;
+let unsubscribeAttendance = null;
 
 logoutButton?.addEventListener("click", async () => {
     const confirmed = await window.showConfirm({
@@ -49,6 +53,11 @@ logoutButton?.addEventListener("click", async () => {
 
 dashboardRetry?.addEventListener("click", () => {
     if (activeUser) loadDashboard(activeUser);
+});
+
+window.addEventListener("pagehide", () => {
+    unsubscribeSessions?.();
+    unsubscribeAttendance?.();
 });
 
 onAuthStateChanged(auth, user => {
@@ -91,23 +100,9 @@ async function loadDashboard(user) {
         }
 
         updateStudentHeader(profile);
+        listenForAttendanceSessions(profile);
+        listenForAttendanceRecords(user.uid, profile);
         setDashboardState("Loading attendance records...");
-
-        const attendanceQuery = query(
-            collection(db, "attendance"),
-            where("studentId", "==", user.uid)
-        );
-        const attendanceSnapshot = await getDocs(attendanceQuery);
-        const records = attendanceSnapshot.docs.map(attendanceDocument => ({
-            id: attendanceDocument.id,
-            ...attendanceDocument.data()
-        }));
-
-        calculateAttendance(records);
-        renderAttendanceAlert(records, profile);
-        displaySubjectAttendance(records);
-        displayRecentAttendance(records);
-        setDashboardState("");
     } catch (error) {
         console.error("Student dashboard data load failed:", error.code || error.name);
         setDashboardState(getDashboardErrorMessage(error), true);
@@ -122,6 +117,143 @@ function updateStudentHeader(profile) {
     studentName.textContent = name;
     headerStudentName.textContent = name;
     studentInitial.textContent = name.charAt(0).toUpperCase();
+}
+
+function listenForAttendanceSessions(profile) {
+    unsubscribeSessions?.();
+
+    const sessionsQuery = query(
+        collection(db, "sessions"),
+        where("status", "in", ["active", "completed", "stopped"])
+    );
+
+    unsubscribeSessions = onSnapshot(
+        sessionsQuery,
+        snapshot => {
+            const sessions = snapshot.docs
+                .map(sessionDocument => ({
+                    id: sessionDocument.id,
+                    ...sessionDocument.data()
+                }))
+                .filter(sessionData => isSessionApplicableToStudent(sessionData, profile))
+                .sort((left, right) =>
+                    getSessionTimestamp(right.startTime || right.startedAt) -
+                    getSessionTimestamp(left.startTime || left.startedAt));
+
+            renderAttendanceSessions(sessions);
+        },
+        error => {
+            console.error("Student attendance sessions listener error:", error);
+            attendanceSessions.innerHTML =
+                '<div class="empty-state error-state"><strong>Unable to load attendance sessions.</strong></div>';
+            activeSessionsCount.textContent = "Unavailable";
+        }
+    );
+}
+
+function isSessionApplicableToStudent(sessionData, profile) {
+    const profileClass = profile.className || profile.classId || profile.department || "";
+    const sessionClass = sessionData.className || sessionData.classId || sessionData.class || "";
+
+    if (sessionClass && profileClass &&
+        String(sessionClass).toLowerCase() !== String(profileClass).toLowerCase()) {
+        return false;
+    }
+
+    if (sessionData.semester && profile.semester &&
+        String(sessionData.semester) !== String(profile.semester)) {
+        return false;
+    }
+
+    if (sessionData.division && profile.division &&
+        String(sessionData.division).toLowerCase() !== String(profile.division).toLowerCase()) {
+        return false;
+    }
+
+    return true;
+}
+
+function renderAttendanceSessions(sessions) {
+    attendanceSessions.replaceChildren();
+    const activeCount = sessions.filter(sessionData => sessionData.status === "active").length;
+    activeSessionsCount.textContent = activeCount
+        ? `${activeCount} active`
+        : "No active sessions";
+
+    if (!sessions.length) {
+        attendanceSessions.innerHTML =
+            '<div class="empty-state"><strong>No attendance sessions available.</strong>Faculty can start a session for your class.</div>';
+        return;
+    }
+
+    sessions.slice(0, 10).forEach(sessionData => {
+        const isActive = sessionData.status === "active";
+        const card = document.createElement("article");
+        card.className = "subject-card";
+
+        const badge = document.createElement("span");
+        badge.className = `session-badge ${isActive ? "active" : "ended"}`;
+        badge.textContent = isActive ? "Active" : "Completed";
+
+        const title = document.createElement("h3");
+        title.textContent = sessionData.subjectName || sessionData.subject || "Attendance session";
+
+        const details = document.createElement("p");
+        details.className = "subject-meta";
+        details.textContent =
+            `${sessionData.facultyName || "Faculty"} · ${sessionData.date || "Date unavailable"} · ` +
+            `${formatSessionTime(sessionData.startTime || sessionData.startedAt)}`;
+
+        card.append(badge, title, details);
+        attendanceSessions.appendChild(card);
+    });
+}
+
+function getSessionTimestamp(value) {
+    if (value?.toMillis) return value.toMillis();
+    const timestamp = new Date(value || 0).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+function formatSessionTime(value) {
+    if (value?.toDate) return value.toDate().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? "Time unavailable"
+        : date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+}
+
+function listenForAttendanceRecords(studentUid, profile) {
+    unsubscribeAttendance?.();
+
+    const attendanceQuery = query(
+        collection(db, "attendance"),
+        where("studentId", "==", studentUid)
+    );
+
+    unsubscribeAttendance = onSnapshot(
+        attendanceQuery,
+        snapshot => {
+            const records = snapshot.docs.map(attendanceDocument => ({
+                id: attendanceDocument.id,
+                ...attendanceDocument.data()
+            }));
+
+            calculateAttendance(records);
+            renderAttendanceAlert(records, profile);
+            displaySubjectAttendance(records);
+            displayRecentAttendance(records);
+            setDashboardState("");
+        },
+        error => {
+            console.error("Student attendance listener error:", error);
+            setDashboardState(getDashboardErrorMessage(error), true);
+            renderLoadError();
+        }
+    );
 }
 
 function calculateAttendance(records) {

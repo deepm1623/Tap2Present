@@ -35,7 +35,7 @@ setSessionState("loading");
 
 const sessionsQuery = query(
     collection(db, "sessions"),
-    where("status", "in", ["active", "stopped"])
+    where("status", "in", ["active", "completed", "stopped"])
 );
 
 const unsubscribe = onSnapshot(
@@ -66,11 +66,15 @@ const unsubscribe = onSnapshot(
 window.addEventListener("pagehide", unsubscribe, { once: true });
 
 function isApplicableSession(sessionData) {
-    return ["classId", "className", "semester", "division"].every(field => {
+    const applicableFields = ["classId", "className", "semester", "division"];
+    return applicableFields.every(field => {
         if (sessionData[field] === undefined || sessionData[field] === null || sessionData[field] === "") {
             return true;
         }
-        return String(sessionData[field]).toLowerCase() === String(profile[field] || "").toLowerCase();
+        const profileValue = field === "classId" || field === "className"
+            ? (profile.className || profile.classId || profile.department)
+            : profile[field];
+        return String(sessionData[field]).toLowerCase() === String(profileValue || "").toLowerCase();
     });
 }
 
