@@ -644,25 +644,58 @@ async function handleNFCReading(event) {
     if (!scannerActive || processingCard) return;
 
     processingCard = true;
-    console.log("NFC tag detected");
+
+    const hardwareUid = event.serialNumber || "Not available";
+    console.log("NFC card detected.");
+    console.log("Hardware UID (diagnostic only):", hardwareUid);
     console.log("Raw NFC data:", event.message);
-    console.log("NFC serial number:", event.serialNumber || "Not available");
 
     try {
-        const studentCode = readStudentCode(event.message, event.serialNumber);
-
-        if (!studentCode) {
-            console.warn("Student ID extracted: none");
+        if (!activeSession) {
             showResult(
-                "Invalid NFC card",
-                "This card does not contain a valid Tap2Present student ID.",
+                "No active attendance session",
+                "Start an attendance session before scanning student cards.",
                 "error"
             );
-
             return;
         }
 
-        await markStudentAttendance(studentCode);
+        const ndefResult = readStudentCodeFromNdef(event.message);
+        console.log("Extracted Student ID:", ndefResult.studentId || "none");
+
+        if (ndefResult.studentId) {
+            await markStudentAttendance(ndefResult.studentId);
+            return;
+        }
+
+        // Hardware UID is never treated as a student ID. It is only used when
+        // a student document has that UID stored as a registered card field.
+        const registeredStudent = await findStudentByRegisteredHardwareUid(event.serialNumber);
+        if (registeredStudent) {
+            console.log("Matched student name:", registeredStudent.name);
+            await markStudentAttendance(
+                normalizeStudentId(registeredStudent.studentId),
+                registeredStudent
+            );
+            return;
+        }
+
+        if (!ndefResult.hasTextRecord) {
+            showResult(
+                "No NDEF text record",
+                "This card was detected, but it does not contain a Tap2Present text record such as TAP2P:STU001.",
+                "error"
+            );
+            return;
+        }
+
+        showResult(
+            "Invalid NFC text format",
+            ndefResult.rawText
+                ? `Read "${ndefResult.rawText}", but the card must contain TAP2P: followed by the student ID.`
+                : "The NFC text record could not be decoded into TAP2P:STUDENTID.",
+            "error"
+        );
 
     } catch (error) {
         console.error("Card reading error:", error);
@@ -673,9 +706,7 @@ async function handleNFCReading(event) {
 
         showResult(
             "Scan failed",
-            error.code
-                ? `${error.code}: ${error.message}`
-                : (error.message || "Something went wrong while processing this card."),
+            getScanFailureMessage(error),
             "error"
         );
 
@@ -697,68 +728,155 @@ function handleNFCReadingError() {
     );
 }
 
+function getScanFailureMessage(error) {
+    if (isPermissionError(error)) {
+        return "Firestore permission error. This faculty account cannot read users or write attendance.";
+    }
+
+    return error.message || "Something went wrong while processing this card.";
+}
+
+function isPermissionError(error) {
+    return error?.code === "permission-denied"
+        || /permission-denied|insufficient permissions/i.test(error?.message || "");
+}
+
+function normalizeStudentId(value) {
+    return String(value || "").trim().replace(/\s+/g, "").toUpperCase();
+}
+
+function getRecordBytes(data) {
+    if (!data) return new Uint8Array();
+    if (data instanceof Uint8Array) return data;
+    if (data instanceof ArrayBuffer) return new Uint8Array(data);
+    return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
+}
+
+function decodeTextSafely(bytes, encoding) {
+    try {
+        return new TextDecoder(encoding || "utf-8").decode(bytes);
+    } catch (error) {
+        console.warn("Unable to decode NFC bytes with", encoding, error);
+        return "";
+    }
+}
+
+// Web NFC already exposes text as UTF-8/UTF-16 bytes.
+// Raw NFC Forum text records still start with a language/status prefix.
+function decodeNdefTextCandidates(record) {
+    const bytes = getRecordBytes(record.data);
+    const candidates = [];
+
+    const webNfcText = decodeTextSafely(bytes, record.encoding || "utf-8");
+    if (webNfcText) candidates.push(webNfcText);
+
+    if (bytes.length > 1) {
+        const statusByte = bytes[0];
+        const languageLength = statusByte & 0x3f;
+        const isUtf16 = (statusByte & 0x80) !== 0;
+
+        if (languageLength <= 63 && bytes.length > 1 + languageLength) {
+            const rawText = decodeTextSafely(
+                bytes.slice(1 + languageLength),
+                isUtf16 ? "utf-16" : "utf-8"
+            );
+            if (rawText) candidates.push(rawText);
+        }
+    }
+
+    const utf8Fallback = decodeTextSafely(bytes, "utf-8");
+    if (utf8Fallback) candidates.push(utf8Fallback);
+
+    return [...new Set(candidates.map(text => text.replace(/\u0000/g, "").trim()).filter(Boolean))];
+}
+
+function parseTap2PresentStudentId(text) {
+    const cleaned = String(text || "").replace(/\u0000/g, "").trim();
+    if (!cleaned) return null;
+
+    const match = cleaned.match(/TAP2P\s*:\s*([A-Za-z0-9][A-Za-z0-9_-]*)/i);
+    if (!match) return null;
+
+    return normalizeStudentId(match[1]);
+}
+
 // ---------------------------------------------
 // EXTRACT STUDENT ID FROM NDEF MESSAGE
 // ---------------------------------------------
 
-function readStudentCode(message, serialNumber) {
-    for (const record of message.records) {
+function readStudentCodeFromNdef(message) {
+    const records = message?.records || [];
+    let hasTextRecord = false;
+    let rawText = "";
+
+    for (const record of records) {
+        const recordType = record.recordType || "unknown";
+        console.log("NDEF record type:", recordType);
+
         try {
-            let text = "";
+            const decodedTexts = recordType === "text"
+                ? decodeNdefTextCandidates(record)
+                : [decodeTextSafely(getRecordBytes(record.data), "utf-8")].filter(Boolean);
 
-            if (record.recordType === "text") {
-                const data = new Uint8Array(record.data);
-                if (data.length === 0) continue;
-
-                const status = data[0];
-                const languageCodeLength = status & 0x3f;
-                text = new TextDecoder(status & 0x80 ? "utf-16" : "utf-8")
-                    .decode(data.slice(1 + languageCodeLength));
-
-            } else if (record.recordType === "mime") {
-                const decoder = new TextDecoder();
-                text = decoder.decode(record.data);
-
-            } else if (record.recordType === "url") {
-                const decoder = new TextDecoder();
-                text = decoder.decode(record.data);
+            if (recordType === "text" && decodedTexts.length) {
+                hasTextRecord = true;
             }
 
-            text = text.trim();
-            console.log("NDEF record decoded:", text);
-            console.log("Raw NFC text record:", text);
+            for (const decodedText of decodedTexts) {
+                console.log("Raw decoded text:", decodedText);
+                rawText = rawText || decodedText;
 
-            const match = text.match(/^TAP2P:\s*([A-Z]+\d+)\s*$/i)
-                || text.match(/TAP2P:\s*([A-Z]+\d+)/i);
+                const studentId = parseTap2PresentStudentId(decodedText);
+                if (studentId) {
+                    console.log("Extracted Student ID:", studentId);
+                    return {
+                        studentId,
+                        rawText: decodedText,
+                        hasTextRecord: true
+                    };
+                }
 
-            if (match) {
-                const studentCode = match[1].replace(/\s+/g, "").toUpperCase();
-                console.log("Student ID extracted:", studentCode);
-                return studentCode;
+                if (recordType === "text") {
+                    hasTextRecord = true;
+                }
             }
-
         } catch (error) {
             console.warn("Unable to decode NFC record:", error);
         }
     }
 
-    if (serialNumber) {
-        const normalizedSerial = String(serialNumber).replace(/[^A-Z0-9]/gi, "").toUpperCase();
-        if (normalizedSerial) {
-            console.log("Student ID extracted from NFC card serial:", normalizedSerial);
-            return normalizedSerial;
-        }
-    }
-
-    return null;
+    return {
+        studentId: null,
+        rawText,
+        hasTextRecord
+    };
 }
 
 // ---------------------------------------------
 // FIND STUDENT IN FIRESTORE
 // ---------------------------------------------
 
+function validateStudentDocument(studentDocument, studentCode) {
+    const data = studentDocument.data();
+
+    if (data.role !== "student") {
+        throw new Error(`The matching document for ${studentCode} is not a student account.`);
+    }
+
+    if (String(data.status || "").toLowerCase() !== "active") {
+        throw new Error(`Student ${studentCode} is inactive.`);
+    }
+
+    console.log("Matched student name:", data.name || "Unknown student");
+
+    return {
+        uid: studentDocument.id,
+        ...data
+    };
+}
+
 async function findStudent(studentCode) {
-    const normalizedCode = String(studentCode).trim().replace(/\s+/g, "").toUpperCase();
+    const normalizedCode = normalizeStudentId(studentCode);
     console.log("Firestore collection searched: users");
     console.log("NFC student ID lookup:", normalizedCode);
 
@@ -767,35 +885,17 @@ async function findStudent(studentCode) {
             collection(db, "users"),
             where("studentId", "==", normalizedCode)
         );
-        let snapshot = await getDocs(studentIdQuery);
+        const snapshot = await getDocs(studentIdQuery);
         console.log("Number of matching student documents:", snapshot.size);
 
-        // Compatibility fallback for profiles that may contain whitespace or
-        // lowercase student IDs. The primary lookup above remains the exact query.
         if (snapshot.empty) {
-            const allUsers = await getDocs(collection(db, "users"));
-            snapshot = allUsers;
-            snapshot = snapshot.docs.filter((studentDocument) => {
-                const data = studentDocument.data();
-                const storedId = String(data.studentId || "")
-                    .trim()
-                    .replace(/\s+/g, "")
-                    .toUpperCase();
-                return storedId === normalizedCode;
-            });
-            console.log("Number of normalized matching student documents:", snapshot.length);
-        } else {
-            snapshot = snapshot.docs;
-        }
-
-        if (!snapshot.length) {
             throw new Error(`Student ID ${normalizedCode} was not found in users.`);
         }
 
-        const studentDocument = snapshot.find((documentSnapshot) => {
+        const studentDocument = snapshot.docs.find((documentSnapshot) => {
             const data = documentSnapshot.data();
             return data.role === "student";
-        }) || snapshot[0];
+        }) || snapshot.docs[0];
 
         const data = studentDocument.data();
         console.log("Student academic details:", {
@@ -806,32 +906,61 @@ async function findStudent(studentCode) {
             division: data.division || null
         });
 
-        if (data.role !== "student") {
-            throw new Error(`The matching document for ${normalizedCode} is not a student account.`);
-        }
-        if (String(data.status).toLowerCase() !== "active") {
-            throw new Error(`Student ${normalizedCode} is inactive.`);
-        }
-
-        return {
-            uid: studentDocument.id,
-            ...data
-        };
+        return validateStudentDocument(studentDocument, normalizedCode);
     } catch (error) {
         console.error("Firestore student lookup error:", {
             code: error.code || "unknown",
             message: error.message,
             studentId: normalizedCode
         });
+
+        if (isPermissionError(error)) {
+            throw new Error("Firestore permission error. This faculty account cannot search the users collection.");
+        }
+
         throw error;
     }
+}
+
+async function findStudentByRegisteredHardwareUid(serialNumber) {
+    if (!serialNumber) return null;
+
+    const rawSerial = String(serialNumber).trim();
+    const compactSerial = rawSerial.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    const serialValues = [...new Set([
+        rawSerial,
+        rawSerial.toUpperCase(),
+        compactSerial
+    ].filter(Boolean))];
+
+    console.log("Firestore collection searched: users (registered hardware UID only)");
+
+    for (const fieldName of ["nfcCardUid", "nfcCardId", "cardId"]) {
+        for (const serialValue of serialValues) {
+            try {
+                const serialQuery = query(
+                    collection(db, "users"),
+                    where(fieldName, "==", serialValue)
+                );
+                const snapshot = await getDocs(serialQuery);
+                if (snapshot.empty) continue;
+
+                console.log("Number of matching student documents:", snapshot.size);
+                return validateStudentDocument(snapshot.docs[0], snapshot.docs[0].data().studentId);
+            } catch (error) {
+                console.warn("Registered hardware UID lookup skipped:", fieldName, error);
+            }
+        }
+    }
+
+    return null;
 }
 
 // ---------------------------------------------
 // MARK ATTENDANCE
 // ---------------------------------------------
 
-async function markStudentAttendance(studentCode) {
+async function markStudentAttendance(studentCode, knownStudent) {
     const subject = subjectInput.value.trim();
     const date = getLocalDate();
 
@@ -840,8 +969,11 @@ async function markStudentAttendance(studentCode) {
     }
 
     if (!activeSession) {
-        throw new Error("No valid active attendance session.");
+        throw new Error("No active attendance session.");
     }
+
+    const sessionId = activeSession.id;
+    console.log("Active session ID:", sessionId);
 
     showResult(
         "Verifying student",
@@ -851,81 +983,88 @@ async function markStudentAttendance(studentCode) {
     startButton.disabled = true;
     stopButton.disabled = true;
 
-    const student = await findStudent(studentCode);
+    const student = knownStudent || await findStudent(studentCode);
+    const displayStudentId = normalizeStudentId(student.studentId || studentCode);
 
-    if (student.status !== "active") {
-        startButton.disabled = false;
-        stopButton.disabled = false;
-        throw new Error("This student account is inactive.");
+    if (String(student.status || "").toLowerCase() !== "active") {
+        throw new Error(`Student ${displayStudentId} is inactive.`);
     }
 
-    if (scannedStudents.has(student.uid)) {
-        startButton.disabled = false;
-        stopButton.disabled = false;
+    if (scannedStudents.has(student.uid) || scannedStudents.has(displayStudentId)) {
         showResult(
-            "Already scanned",
-            `${student.name} has already been scanned during this session.`,
+            "Duplicate attendance",
+            `${student.name || displayStudentId} is already marked present in this session.`,
             "error"
         );
-
         return;
     }
 
-    const subjectKey = subject
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "_")
-        .replace(/^_+|_+$/g, "");
-
-    const attendanceId = `${activeSession.id}_${student.uid}`;
+    const attendanceId = `${sessionId}_${student.uid}`;
     const attendanceRef = doc(db, "attendance", attendanceId);
 
-    await runTransaction(db, async (transaction) => {
-        const existingAttendance = await transaction.get(attendanceRef);
+    try {
+        await runTransaction(db, async (transaction) => {
+            const existingAttendance = await transaction.get(attendanceRef);
 
-        if (existingAttendance.exists()) {
-            throw new Error(
-                "Attendance has already been recorded for this student, subject and date."
+            if (existingAttendance.exists()) {
+                throw new Error("DUPLICATE_ATTENDANCE");
+            }
+
+            transaction.set(attendanceRef, {
+                studentId: student.uid,
+                studentCode: displayStudentId,
+                studentName: student.name || "Student",
+                facultyId: currentFaculty.uid,
+                facultyName: currentFaculty.name,
+                scannedBy: currentFaculty.uid,
+                subject: subject,
+                subjectCode: subjectCodeInput.value.trim(),
+                sessionId: sessionId,
+                date: date,
+                time: getLocalTime(),
+                status: "present",
+                attendanceStatus: "present",
+                scannedAt: serverTimestamp(),
+                createdAt: serverTimestamp()
+            });
+        });
+    } catch (error) {
+        if (error.message === "DUPLICATE_ATTENDANCE") {
+            showResult(
+                "Duplicate attendance",
+                `${student.name || displayStudentId} is already marked present in this session.`,
+                "error"
             );
+            return;
         }
 
-        transaction.set(attendanceRef, {
-            studentId: student.uid,
-            studentCode: studentCode,
-            studentName: student.name || "Student",
-            subject: subject,
-            subjectCode: subjectCodeInput.value.trim(),
-            date: date,
-            time: getLocalTime(),
-            status: "present",
-            attendanceStatus: "present",
-            sessionId: activeSession.id,
-            scannedBy: currentFaculty.uid,
-            facultyId: currentFaculty.uid,
-            scannedAt: serverTimestamp(),
-            createdAt: serverTimestamp()
-        });
-    });
+        if (isPermissionError(error)) {
+            throw new Error("Firestore permission error. Attendance could not be recorded.");
+        }
+
+        throw error;
+    }
 
     scannedStudents.add(student.uid);
-    startButton.disabled = false;
-    stopButton.disabled = false;
+    scannedStudents.add(displayStudentId);
 
     updateScanCount();
-    addStudentToTable(student, studentCode);
+    addStudentToTable(student, displayStudentId);
 
     showResult(
         "Attendance marked successfully",
-        `${student.name || "Student"} (${studentCode}) is marked PRESENT for ${subject}.`,
+        `${student.name || "Student"} (${displayStudentId}) is marked PRESENT for ${subject}.`,
         "success"
     );
 
     showToast(
-        `${student.name || studentCode} marked present.`,
+        `${student.name || displayStudentId} marked present.`,
         "success"
     );
     console.log("Attendance successfully recorded:", {
-        studentId: studentCode,
+        studentId: displayStudentId,
         uid: student.uid,
+        sessionId,
         subject,
         date
     });
