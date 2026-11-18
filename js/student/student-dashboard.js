@@ -122,16 +122,27 @@ function updateStudentHeader(profile) {
 function listenForAttendanceSessions(profile) {
     unsubscribeSessions?.();
 
-    console.log("Active session query: collection=sessions, status in [active,completed,stopped]");
+    const studentClass = profile.className || profile.classId || profile.class || profile.department || "";
+    const semester = profile.semester;
+    const division = profile.division;
+
+    console.log("Active session query: collection=sessions, filtered by class/semester/division");
     console.log("Student academic details:", {
-        className: profile.className || profile.classId || profile.department || null,
-        semester: profile.semester ?? null,
-        division: profile.division || null
+        className: studentClass || null,
+        semester: semester ?? null,
+        division: division || null
     });
+
+    if (!studentClass || semester == null || semester === "" || !division) {
+        renderAttendanceSessions([], profile);
+        return;
+    }
 
     const sessionsQuery = query(
         collection(db, "sessions"),
-        where("status", "in", ["active", "completed", "stopped"])
+        where("className", "==", studentClass),
+        where("semester", "==", Number(semester)),
+        where("division", "==", String(division))
     );
 
     unsubscribeSessions = onSnapshot(
@@ -142,7 +153,9 @@ function listenForAttendanceSessions(profile) {
                     id: sessionDocument.id,
                     ...sessionDocument.data()
                 }))
-                .filter(sessionData => isSessionApplicableToStudent(sessionData, profile))
+                .filter(sessionData =>
+                    ["active", "completed", "stopped"].includes(sessionData.status)
+                    && isSessionApplicableToStudent(sessionData, profile))
                 .sort((left, right) =>
                     getSessionTimestamp(right.startTime || right.startedAt) -
                     getSessionTimestamp(left.startTime || left.startedAt));
@@ -292,13 +305,9 @@ function listenForAttendanceRecords(studentUid, profile) {
 }
 
 function calculateAttendance(records) {
-    const validRecords = records.filter(record => isAttendanceStatus(record.status));
-    const present = validRecords.filter(record =>
-        String(record.status).toLowerCase() === "present"
-    ).length;
-    const absent = validRecords.filter(record =>
-        String(record.status).toLowerCase() === "absent"
-    ).length;
+    const validRecords = records.filter(record => isAttendanceStatus(getRecordStatus(record)));
+    const present = validRecords.filter(record => getRecordStatus(record) === "present").length;
+    const absent = validRecords.filter(record => getRecordStatus(record) === "absent").length;
     const total = present + absent;
     const percentage = total ? Math.round((present / total) * 100) : 0;
 
@@ -313,7 +322,7 @@ function displaySubjectAttendance(records) {
 
     records.forEach(record => {
         const subject = String(record.subject || "").trim();
-        const status = String(record.status || "").toLowerCase();
+        const status = getRecordStatus(record);
 
         if (!subject || !isAttendanceStatus(status)) return;
 
@@ -389,7 +398,7 @@ function displayRecentAttendance(records) {
         time.textContent = record.time || "Not available";
 
         const status = document.createElement("span");
-        const statusValue = String(record.status || "").toLowerCase();
+        const statusValue = getRecordStatus(record);
         status.className = `status-badge ${
             statusValue === "present" ? "status-present" :
                 statusValue === "absent" ? "status-absent" : ""
@@ -410,7 +419,7 @@ function renderAttendanceAlert(records, profile) {
     const validRequirement = Number.isFinite(requirement) &&
         requirement >= 0 &&
         requirement <= 100;
-    const validRecords = records.filter(record => isAttendanceStatus(record.status));
+    const validRecords = records.filter(record => isAttendanceStatus(getRecordStatus(record)));
 
     attendanceAlert.hidden = false;
 
@@ -428,9 +437,7 @@ function renderAttendanceAlert(records, profile) {
         return;
     }
 
-    const present = validRecords.filter(record =>
-        String(record.status).toLowerCase() === "present"
-    ).length;
+    const present = validRecords.filter(record => getRecordStatus(record) === "present").length;
     const percentage = Math.round((present / validRecords.length) * 100);
     attendanceAlert.className = percentage >= requirement
         ? "alert-card success"
@@ -446,6 +453,10 @@ function getRecordTimestamp(record) {
     if (!Number.isNaN(parsed)) return parsed;
     if (record.createdAt?.toMillis) return record.createdAt.toMillis();
     return 0;
+}
+
+function getRecordStatus(record) {
+    return String(record?.attendanceStatus || record?.status || "").toLowerCase();
 }
 
 function isAttendanceStatus(status) {

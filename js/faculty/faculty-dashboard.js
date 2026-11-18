@@ -3,6 +3,7 @@ import { db } from "../../firebase-config.js";
 import {
     collection,
     doc,
+    getDocs,
     query,
     where,
     onSnapshot,
@@ -17,6 +18,8 @@ document.querySelector("[data-logout]").addEventListener("click", async (event) 
     await logout();
 });
 
+const assignedClassesCount = document.getElementById("assignedClassesCount");
+const totalStudentsCount = document.getElementById("totalStudentsCount");
 const todayAttendanceCount = document.getElementById("todayAttendanceCount");
 const recentActivityCount = document.getElementById("recentActivityCount");
 const activeSessionStatus = document.getElementById("activeSessionStatus");
@@ -24,6 +27,8 @@ const endDashboardSessionButton = document.getElementById("endDashboardSessionBu
 const recentAttendanceActivity = document.getElementById("recentAttendanceActivity");
 
 let dashboardActiveSession = null;
+let unsubscribeSessions = null;
+let unsubscribeAttendance = null;
 
 const now = new Date();
 const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
@@ -33,7 +38,7 @@ const sessionsQuery = query(
     where("facultyId", "==", session.user.uid)
 );
 
-onSnapshot(
+unsubscribeSessions = onSnapshot(
     sessionsQuery,
     snapshot => {
         dashboardActiveSession = snapshot.docs
@@ -63,10 +68,11 @@ onSnapshot(
 
 const attendanceQuery = query(
     collection(db, "attendance"),
+    where("facultyId", "==", session.user.uid),
     where("date", "==", today)
 );
 
-onSnapshot(
+unsubscribeAttendance = onSnapshot(
     attendanceQuery,
     snapshot => {
         const records = snapshot.docs
@@ -74,10 +80,6 @@ onSnapshot(
                 id: attendanceDocument.id,
                 ...attendanceDocument.data()
             }))
-            .filter(record =>
-                record.facultyId === session.user.uid ||
-                record.scannedBy === session.user.uid);
-
         todayAttendanceCount.textContent = records.length;
         recentActivityCount.textContent = records.length;
 
@@ -146,3 +148,42 @@ function showDashboardToast(message, type) {
         window.showToast(message, type);
     }
 }
+
+loadFacultyTotals();
+
+async function loadFacultyTotals() {
+    try {
+        const [sessionsSnapshot, usersSnapshot] = await Promise.all([
+            getDocs(query(collection(db, "sessions"), where("facultyId", "==", session.user.uid))),
+            getDocs(query(collection(db, "users"), where("role", "==", "student")))
+        ]);
+
+        const classNames = new Set(
+            sessionsSnapshot.docs
+                .map(sessionDocument => {
+                    const data = sessionDocument.data();
+                    return data.className || data.classId || data.class || "";
+                })
+                .filter(Boolean)
+        );
+
+        assignedClassesCount.textContent = classNames.size;
+
+        const matchingStudents = usersSnapshot.docs.filter(studentDocument => {
+            const student = studentDocument.data();
+            const studentClass = student.className || student.classId || student.class || student.department || "";
+            return classNames.has(studentClass);
+        });
+
+        totalStudentsCount.textContent = matchingStudents.length;
+    } catch (error) {
+        console.error("Faculty dashboard totals error:", error);
+        assignedClassesCount.textContent = "--";
+        totalStudentsCount.textContent = "--";
+    }
+}
+
+window.addEventListener("pagehide", () => {
+    unsubscribeSessions?.();
+    unsubscribeAttendance?.();
+}, { once: true });

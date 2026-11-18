@@ -24,11 +24,9 @@ try {
 
 function renderOverview(records, profile) {
     const validRecords = records.filter(record =>
-        ["present", "absent"].includes(String(record.status || "").toLowerCase())
+        ["present", "absent"].includes(getRecordStatus(record))
     );
-    const present = validRecords.filter(record =>
-        String(record.status).toLowerCase() === "present"
-    ).length;
+    const present = validRecords.filter(record => getRecordStatus(record) === "present").length;
     const absent = validRecords.length - present;
     const percentage = validRecords.length
         ? Math.round((present / validRecords.length) * 100)
@@ -45,7 +43,7 @@ function renderOverview(records, profile) {
         if (!subject) return;
         const summary = subjects.get(subject) || { total: 0, present: 0 };
         summary.total += 1;
-        if (String(record.status).toLowerCase() === "present") summary.present += 1;
+        if (getRecordStatus(record) === "present") summary.present += 1;
         subjects.set(subject, summary);
     });
 
@@ -84,4 +82,8 @@ function renderOverview(records, profile) {
     alert.textContent = percentage >= requirement
         ? `Attendance is above the configured ${requirement}% requirement.`
         : `Attendance is below the configured ${requirement}% requirement.`;
+}
+
+function getRecordStatus(record) {
+    return String(record?.attendanceStatus || record?.status || "").toLowerCase();
 }

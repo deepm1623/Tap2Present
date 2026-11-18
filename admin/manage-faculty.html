@@ -1,2 +1,69 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Manage Faculty | Tap2Present</title><link rel="stylesheet" href="../css/common.css"><link rel="stylesheet" href="../css/admin/manage-faculty.css"></head><body class="dashboard-page"><div class="dashboard-layout"><aside class="dashboard-sidebar"><a href="admin-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a><p class="sidebar-heading">ADMIN MENU</p><nav class="sidebar-nav"><a href="admin-dashboard.html">▦ Dashboard</a><a href="manage-students.html">◎ Manage Students</a><a class="active" href="manage-faculty.html">▣ Manage Faculty</a><a href="admin-reports.html">▥ Reports</a></nav><div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div></aside><main class="dashboard-main"><div class="page-title"><p class="dashboard-date">ADMIN PORTAL</p><h1>Manage Faculty</h1></div><section class="data-card"><h2>Faculty directory</h2><p class="empty-history">Faculty records will appear here after they are approved by an administrator.</p></section></main></div><script type="module" src="../js/admin/manage-faculty.js"></script><script src="../js/Common/popups.js"></script>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Faculty | Tap2Present</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/admin/manage-faculty.css">
+</head>
+<body class="dashboard-page">
+<div class="dashboard-layout">
+    <aside class="dashboard-sidebar">
+        <a href="admin-dashboard.html" class="brand">
+            <img src="../assets/images/logo.png" alt="Tap2Present">
+            <span>Tap2<span>Present</span></span>
+        </a>
+        <p class="sidebar-heading">ADMIN MENU</p>
+        <nav class="sidebar-nav">
+            <a href="admin-dashboard.html">▦ Dashboard</a>
+            <a href="manage-students.html">◎ Manage Students</a>
+            <a class="active" href="manage-faculty.html">▣ Manage Faculty</a>
+            <a href="admin-reports.html">▥ Reports</a>
+        </nav>
+        <div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div>
+    </aside>
+    <main class="dashboard-main">
+        <div class="page-title">
+            <p class="dashboard-date">ADMIN PORTAL</p>
+            <h1>Manage Faculty</h1>
+            <p class="dashboard-subtitle">Faculty accounts stored in the users collection.</p>
+        </div>
+        <p id="facultyMessage" class="dashboard-message">Loading faculty accounts...</p>
+        <section class="data-card">
+            <div class="section-heading">
+                <h2>Add faculty account</h2>
+            </div>
+            <form id="facultyForm" class="profile-form">
+                <label for="facultyName">Full name<input id="facultyName" required></label>
+                <label for="facultyEmail">Email<input id="facultyEmail" type="email" required></label>
+                <label for="facultyPassword">Temporary password<input id="facultyPassword" type="password" minlength="6" required></label>
+                <label for="facultyDepartment">Department<input id="facultyDepartment" required></label>
+                <button class="primary-button" id="saveFacultyButton" type="submit">Create faculty account</button>
+            </form>
+        </section>
+        <section class="data-card" style="margin-top:24px">
+            <h2>Faculty directory</h2>
+            <div class="table-wrapper">
+                <table class="attendance-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Department</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="facultyTableBody">
+                        <tr><td colspan="5" class="empty-history">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+<script type="module" src="../js/admin/manage-faculty.js"></script>
+<script src="../js/Common/popups.js"></script>
+</body>
+</html>

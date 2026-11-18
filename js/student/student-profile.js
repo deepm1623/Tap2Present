@@ -1,7 +1,7 @@
 import { setupStudentPortal } from "./student-portal.js";
 import { auth, db } from "../../firebase-config.js";
 import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-auth.js";
-import { updateDoc, doc } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
+import { updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 const session = await setupStudentPortal();
 const profile = session.profile;
@@ -33,7 +33,10 @@ profileForm.addEventListener("submit", async event => {
     }
 
     try {
-        await updateDoc(doc(db, "users", session.user.uid), { phone });
+        await updateDoc(doc(db, "users", session.user.uid), {
+            phone,
+            updatedAt: serverTimestamp()
+        });
         profileMessage.textContent = "Phone number updated.";
         document.querySelector('[data-profile-field="phone"]').textContent = phone || "Not provided";
         window.showToast("Your phone number was updated.", "success", "Profile updated");

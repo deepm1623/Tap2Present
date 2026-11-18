@@ -1,2 +1,62 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Admin Reports | Tap2Present</title><link rel="stylesheet" href="../css/common.css"><link rel="stylesheet" href="../css/admin/admin-reports.css"></head><body class="dashboard-page"><div class="dashboard-layout"><aside class="dashboard-sidebar"><a href="admin-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a><p class="sidebar-heading">ADMIN MENU</p><nav class="sidebar-nav"><a href="admin-dashboard.html">▦ Dashboard</a><a href="manage-students.html">◎ Manage Students</a><a href="manage-faculty.html">▣ Manage Faculty</a><a class="active" href="admin-reports.html">▥ Reports</a></nav><div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div></aside><main class="dashboard-main"><div class="page-title"><p class="dashboard-date">ADMIN PORTAL</p><h1>Reports</h1></div><section class="data-card"><h2>Institution reports</h2><p class="empty-history">Reports will appear after attendance data is recorded.</p></section></main></div><script type="module" src="../js/admin/admin-reports.js"></script><script src="../js/Common/popups.js"></script>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Reports | Tap2Present</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/admin/admin-reports.css">
+</head>
+<body class="dashboard-page">
+<div class="dashboard-layout">
+    <aside class="dashboard-sidebar">
+        <a href="admin-dashboard.html" class="brand">
+            <img src="../assets/images/logo.png" alt="Tap2Present">
+            <span>Tap2<span>Present</span></span>
+        </a>
+        <p class="sidebar-heading">ADMIN MENU</p>
+        <nav class="sidebar-nav">
+            <a href="admin-dashboard.html">▦ Dashboard</a>
+            <a href="manage-students.html">◎ Manage Students</a>
+            <a href="manage-faculty.html">▣ Manage Faculty</a>
+            <a class="active" href="admin-reports.html">▥ Reports</a>
+        </nav>
+        <div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div>
+    </aside>
+    <main class="dashboard-main">
+        <div class="page-title">
+            <p class="dashboard-date">ADMIN PORTAL</p>
+            <h1>Reports</h1>
+            <p class="dashboard-subtitle">Institution attendance stored in Firestore.</p>
+        </div>
+        <p id="reportsMessage" class="dashboard-message">Loading institution reports...</p>
+        <section class="stats-grid">
+            <div class="stat-card"><p>Total records</p><h2 id="totalRecords">--</h2><span>Attendance documents</span></div>
+            <div class="stat-card"><p>Present marks</p><h2 id="presentRecords">--</h2><span>Marked present</span></div>
+            <div class="stat-card"><p>Subjects</p><h2 id="subjectCount">--</h2><span>Distinct subjects</span></div>
+            <div class="stat-card"><p>Faculty activity</p><h2 id="facultyCount">--</h2><span>Faculty with records</span></div>
+        </section>
+        <section class="data-card" style="margin-top:24px">
+            <h2>Recent attendance</h2>
+            <div class="table-wrapper">
+                <table class="attendance-table">
+                    <thead>
+                        <tr>
+                            <th>Student</th>
+                            <th>Subject</th>
+                            <th>Faculty</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody id="reportsTableBody">
+                        <tr><td colspan="4" class="empty-history">Loading...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+</div>
+<script type="module" src="../js/admin/admin-reports.js"></script>
+<script src="../js/Common/popups.js"></script>
+</body>
+</html>

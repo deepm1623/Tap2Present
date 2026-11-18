@@ -23,7 +23,14 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if signedIn()
         && (request.auth.uid == userId || isFaculty());
-      allow create, update, delete: if isActiveRole('admin');
+      allow create, delete: if isActiveRole('admin');
+      allow update: if isActiveRole('admin')
+        || (
+          isActiveRole('student')
+          && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys()
+            .hasOnly(['phone', 'updatedAt'])
+        );
     }
 
     match /sessions/{sessionId} {

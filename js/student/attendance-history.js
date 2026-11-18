@@ -12,7 +12,7 @@ import {
     collection,
     query,
     where,
-    getDocs
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/11.10.0/firebase-firestore.js";
 
 // HTML elements
@@ -41,6 +41,7 @@ const logoutButton = document.getElementById("logoutButton");
 let allRecords = [];
 let currentPage = 1;
 const pageSize = 12;
+let unsubscribeAttendance = null;
 
 // Logout
 logoutButton.addEventListener("click", async function () {

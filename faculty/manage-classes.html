@@ -1,2 +1,42 @@
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Manage Classes | Tap2Present</title><link rel="stylesheet" href="../css/common.css"><link rel="stylesheet" href="../css/faculty/manage-classes.css"></head><body class="dashboard-page"><div class="dashboard-layout"><aside class="dashboard-sidebar"><a href="faculty-dashboard.html" class="brand"><img src="../assets/images/logo.png" alt="Tap2Present"><span>Tap2<span>Present</span></span></a><p class="sidebar-heading">FACULTY MENU</p><nav class="sidebar-nav"><a href="faculty-dashboard.html">▦ Dashboard</a><a class="active" href="manage-classes.html">▤ Manage Classes</a><a href="take-attendance.html">◉ Take Attendance</a><a href="faculty-reports.html">▥ Reports</a></nav><div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div></aside><main class="dashboard-main"><div class="page-title"><p class="dashboard-date">FACULTY PORTAL</p><h1>Manage Classes</h1></div><section class="data-card"><h2>Assigned classes</h2><p class="empty-history">No assigned classes are available yet.</p></section></main></div><script type="module" src="../js/faculty/manage-classes.js"></script><script src="../js/Common/popups.js"></script>
-</body></html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Classes | Tap2Present</title>
+    <link rel="stylesheet" href="../css/common.css">
+    <link rel="stylesheet" href="../css/faculty/manage-classes.css">
+</head>
+<body class="dashboard-page">
+<div class="dashboard-layout">
+    <aside class="dashboard-sidebar">
+        <a href="faculty-dashboard.html" class="brand">
+            <img src="../assets/images/logo.png" alt="Tap2Present">
+            <span>Tap2<span>Present</span></span>
+        </a>
+        <p class="sidebar-heading">FACULTY MENU</p>
+        <nav class="sidebar-nav">
+            <a href="faculty-dashboard.html">▦ Dashboard</a>
+            <a class="active" href="manage-classes.html">▤ Manage Classes</a>
+            <a href="take-attendance.html">◉ Take Attendance</a>
+            <a href="faculty-reports.html">▥ Reports</a>
+        </nav>
+        <div class="sidebar-bottom"><a href="#" class="logout-link" data-logout>↪ Logout</a></div>
+    </aside>
+    <main class="dashboard-main">
+        <div class="page-title">
+            <p class="dashboard-date">FACULTY PORTAL</p>
+            <h1>Manage Classes</h1>
+            <p class="dashboard-subtitle">Classes taken from your attendance sessions. There is no separate classes collection.</p>
+        </div>
+        <p id="classesMessage" class="dashboard-message">Loading assigned classes...</p>
+        <section class="data-card">
+            <h2>Assigned classes</h2>
+            <div id="classesList"></div>
+        </section>
+    </main>
+</div>
+<script type="module" src="../js/faculty/manage-classes.js"></script>
+<script src="../js/Common/popups.js"></script>
+</body>
+</html>
